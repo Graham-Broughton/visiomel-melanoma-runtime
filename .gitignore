@@ -63,4 +63,7 @@ pip-wheel-metadata/
 submission/
 
 # Data
-data/
+data/baseline/*
+data/images/*
+data/originals/*
+data/*.tif
