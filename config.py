@@ -32,3 +32,18 @@ class CFG:
     SRC: str = src
     STDMEAN: List = field(default_factory=lambda: [STDMean.RED, STDMean.GREEN, STDMean.BLUE])
     MUMEAN: List = field(default_factory=lambda: [MuMean.RED, MuMean.GREEN, MuMean.BLUE])
+    n_folds: int = 5
+    fold: int = 0
+    debug: bool = False
+    ft: bool = False
+    tile_size: int = 256
+    n_tiles: int = 36
+    page: int = 4
+    image_size: int = 256
+    num_classes: int = 1
+    target: str = 'relapse'
+    distributed: bool = False
+    batch_size: int = 4
+    workers: int = 2
+
+
