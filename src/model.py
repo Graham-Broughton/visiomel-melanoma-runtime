@@ -4,10 +4,10 @@ import apex
 import efficientnet_pytorch
 
 
-def get_model(CFG):
+def get_model(config):
     return efficientnet_pytorch.EfficientNet.from_pretrained(
-        CFG.name,
-        num_classes=CFG.num_classes,
+        config.network.name,
+        num_classes=config.network.num_classes,
     )
 
 
@@ -28,22 +28,22 @@ def add_weight_decay(model, weight_decay=1e-4, skip_list=("bn",)):
     ]
 
 
-def get_opt(CFG, model, criterion):
+def get_opt(args, model, criterion):
     # Scale learning rate based on global batch size
-    if CFG.opt == "Adam":
+    if args.opt.opt == "Adam":
         opt = apex.optimizers.FusedAdam(
             it.chain(
                 model.parameters(), criterion.parameters()
-            ),  # add_weight_decay(model, CFG.weight_decay, ('bn', )),
-            lr=CFG.lr,
-            weight_decay=CFG.weight_decay,
+            ),  # add_weight_decay(model, args.weight_decay, ('bn', )),
+            lr=args.opt.lr,
+            weight_decay=args.opt.weight_decay,
         )
-    elif CFG.opt == "SGD":
+    elif args.opt.opt == "SGD":
         opt = apex.optimizers.FusedSGD(
-            add_weight_decay(model, CFG.weight_decay, ("bn",)),
-            CFG.lr,
-            momentum=CFG.momentum,
-            weight_decay=CFG.weight_decay,
+            add_weight_decay(model, args.opt.weight_decay, ("bn",)),
+            args.opt.lr,
+            momentum=args.opt.momentum,
+            weight_decay=args.opt.weight_decay,
         )
     else:
         raise

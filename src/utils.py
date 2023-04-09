@@ -1,38 +1,39 @@
-import os
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pyvips
-from sklearn.model_selection import StratifiedKFold
-from pathlib import Path
+from sklearn.model_selection import KFold
 
 
 def to_gpu(inp, gpu=0):
     return inp.cuda(gpu, non_blocking=True)
 
 
-def split_df(df, CFG):
-    kf = StratifiedKFold(n_splits=CFG.n_folds, shuffle=True, random_state=CFG.seed)
+def split_df(df, args):
+    kf = KFold(n_splits=args.train.n_folds, shuffle=True, random_state=args.train.seed)
     df["fold"] = -1
     fold_idx = len(df.columns) - 1
 
-    y = df['relapse']
-    for i, (_, dev_index) in enumerate(kf.split(range(len(df)), y.values)):
+    y = df[args.data.labels]
+    for i, (_, dev_index) in enumerate(kf.split(range(len(df)), y.values.argmax(-1))):
         df.iloc[dev_index, fold_idx] = i
 
     return (
-        df[df.fold != CFG.fold].reset_index(drop=True),
-        df[df.fold == CFG.fold].reset_index(drop=True),
+        df[df.fold != args.train.fold].reset_index(drop=True),
+        df[df.fold == args.train.fold].reset_index(drop=True),
     )
 
 
-def get_data_groups(CFG):
-    train = pd.read_csv(os.path.join(f'{CFG.DATA_PATH}/train_metadata.csv', nrows=100 if CFG.debug else None)
-    root = Path(CFG.IMAGE_PATH)
+def get_data_groups(args):
+    train = pd.read_csv(args.data.train, nrows=100 if args.general.debug else None)
+    root = Path(args.data.root)
     train.filename = train.filename.apply(lambda x: str(root / x))
+    args.data.labels = train.columns[1:].tolist()
 
-    train, dev = split_df(train, CFG)
+    train, dev = split_df(train, args)
 
-    if CFG.ft:
+    if args.train.ft:
         train = pd.concat([train, dev])
 
     return train, dev
@@ -45,6 +46,7 @@ def read_img(path, page=4):
     return np.ndarray(
         buffer=region, dtype=np.uint8, shape=(slide.height, slide.width, 3)
     )
+
 
 def get_tiles(img, tile_size=256, n_tiles=36, mode=0):
     h, w, c = img.shape

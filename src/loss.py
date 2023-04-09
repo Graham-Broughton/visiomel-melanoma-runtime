@@ -165,13 +165,13 @@ class OUSMLoss(nn.Module):
         return f"OUSM(loss={self.loss_name}, k={self.k}, trigger={self.trigger}, ousm={self.ousm})"
 
 
-def get_criterion(CFG):
-    print(CFG.loss)
-    if CFG.loss == "bce":
+def get_criterion(args):
+    print(args.train.loss)
+    if args.train.loss == "bce":
         return BCE()
-    elif CFG.loss == "ousm":
+    elif args.train.loss == "ousm":
         return OUSMLoss(k=1, loss="Coral", trigger=1)
-    elif CFG.loss == "xent":
-        return LabelSmoothingCrossEntropy(epsilon=CFG.smoothing)
+    elif args.train.loss == "xent":
+        return LabelSmoothingCrossEntropy(epsilon=args.train.smoothing)
 
-    raise RuntimeError(f'no such loss "{CFG.loss}"')
+    raise RuntimeError(f'no such loss "{args.train.loss}"')
