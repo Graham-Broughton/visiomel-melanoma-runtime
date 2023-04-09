@@ -67,4 +67,4 @@ data/baseline/*
 data/images/*
 data/originals/*
 **.tif
-**.tfrecs
+**.tfrec
