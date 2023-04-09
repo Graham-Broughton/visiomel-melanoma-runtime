@@ -66,5 +66,5 @@ submission/
 data/baseline/*
 data/images/*
 data/originals/*
-data/*.tif
+**.tif
 **.tfrecs
