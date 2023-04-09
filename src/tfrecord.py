@@ -52,19 +52,13 @@ class MakeTFRecords:
     def preprocess_feats_2_encode(self):
         feats = self.train.copy()
 
-        enc = OneHotEncoder(drop="first", sparse_output=False)
-        enc.fit(np.array(feats["melanoma_history"]).reshape(-1, 1))
+        feats["melanoma_history"] = feats["melanoma_history"].replace({'YES': 1, 'NO': 0}).fillna(-1).astype(int)
 
         feats['age'] = feats['age'].apply(lambda x: x[1:3]).astype(int)
         feats['sex'] = feats['sex'].replace({1: 0}).replace({2: 1}).astype(int)
 
         feats = pd.concat([
             feats[['age', 'sex']],
-            pd.DataFrame(
-                enc.transform(np.array(feats["melanoma_history"]).reshape(-1, 1)),
-                columns=enc.get_feature_names_out(),
-                index=feats.index,
-            ).astype(int),
             feats['relapse'].astype(int)
         ], axis=1)
 
@@ -158,6 +152,13 @@ class MakeTFRecords:
         """Returns an int64_list from a bool / enum / int / uint."""
         return tf.train.Feature(
             int64_list=tf.train.Int64List(value=[value])
+        )
+
+    @staticmethod
+    def float32_feature(value):
+        """Returns an float32_list from a float"""
+        return tf.train.Feature(
+            float32_list=tf.train.FloatList(value=[value])
         )
 
 
