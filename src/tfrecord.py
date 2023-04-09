@@ -12,7 +12,7 @@ from loguru import logger
 from sklearn.preprocessing import OneHotEncoder
 
 # logger.remove(0)
-logger.add('../logs/tfrecord.log', format='{time} {level} {message}', level='INFO')
+logger.add('./logs/tfrecord.log', format='{time} {level} {message}', level='INFO')
 
 TFRECORD_IMAGE_RATIO = {
     1: 1,
@@ -36,7 +36,13 @@ class MakeTFRecords:
 
         train_meta = pd.read_csv(self.data_path / 'train_metadata.csv')
         train_labels = pd.read_csv(self.data_path / 'train_labels.csv')
-        self.train = train_meta.merge(train_labels, on='filename')
+        train = train_meta.merge(train_labels, on='filename')
+
+        # Sort by filesize to pair large files with small ones
+        train = train.sort_values('tif_size').reset_index(drop=True)
+        train1 = train.iloc[:len(train)//2].reset_index(drop=True)
+        train2 = train.iloc[~train1.index].reset_index(drop=True)
+        self.train = pd.concat([train1, train2]).sort_index().reset_index(drop=True)
 
         self.samples_per_rec = TFRECORD_IMAGE_RATIO[page]
         self.num_recs = self.train.shape[0] // self.samples_per_rec
@@ -153,3 +159,7 @@ class MakeTFRecords:
         return tf.train.Feature(
             int64_list=tf.train.Int64List(value=[value])
         )
+
+
+class ParseTFRecords:
+    
