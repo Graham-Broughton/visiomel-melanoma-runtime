@@ -8,8 +8,8 @@ dist:
   local_rank: 0
 
 data:
-  root: 'data/train'
-  train: 'data/train_labels.csv'
+  root: 'data'
+  train: 'data/train.csv'
 
 train:
   deterministic: false

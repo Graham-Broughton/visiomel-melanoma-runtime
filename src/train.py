@@ -197,9 +197,6 @@ def main():
 
     model = get_model(args)
     # model = model.to(memory_format=torch.channels_last)
-    if args.dist.sync_bn:
-        print("using apex synced BN")
-        model = apex.parallel.convert_syncbn_model(model)
 
     model.cuda()
 
@@ -213,12 +210,6 @@ def main():
     # This must be done AFTER the call to amp.initialize.  If model = DDP(model) is called
     # before model, ... = amp.initialize(model, ...), the call to amp.initialize may alter
     # the types of model's parameters in a way that disrupts or destroys DDP's allreduce hooks.
-    if args.dist.distributed:
-        # By default, apex.parallel.DistributedDataParallel overlaps communication with
-        # computation in the backward pass.
-        # model = DDP(model)
-        # delay_allreduce delays all communication to the end of the backward pass.
-        model = apex.parallel.DistributedDataParallel(model, delay_allreduce=True)
 
     best_score = 0
     metrics = {"score": Score(), "acc": Accuracy()}

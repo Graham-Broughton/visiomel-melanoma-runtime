@@ -1,6 +1,6 @@
 import itertools as it
+import torch.optim as optim
 
-import apex
 import efficientnet_pytorch
 
 
@@ -30,20 +30,17 @@ def add_weight_decay(model, weight_decay=1e-4, skip_list=("bn",)):
 
 def get_opt(args, model, criterion):
     # Scale learning rate based on global batch size
-    if args.opt.opt == "Adam":
-        opt = apex.optimizers.FusedAdam(
-            it.chain(
-                model.parameters(), criterion.parameters()
-            ),  # add_weight_decay(model, args.weight_decay, ('bn', )),
+    if args.opt.opt == "AdamW":
+        opt = optim.AdamW(
+            model.parameters(),
             lr=args.opt.lr,
-            weight_decay=args.opt.weight_decay,
+            weight_decay=args.opt.weight_decay
         )
-    elif args.opt.opt == "SGD":
-        opt = apex.optimizers.FusedSGD(
-            add_weight_decay(model, args.opt.weight_decay, ("bn",)),
-            args.opt.lr,
-            momentum=args.opt.momentum,
-            weight_decay=args.opt.weight_decay,
+    elif args.opt.opt == "Adam":
+        opt = optim.Adam(
+            model.parameters(),
+            lr=args.opt.lr,
+            weight_decay=args.opt.weight_decay
         )
     else:
         raise

@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pyvips
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 
 
 def to_gpu(inp, gpu=0):
@@ -11,12 +11,12 @@ def to_gpu(inp, gpu=0):
 
 
 def split_df(df, args):
-    kf = KFold(n_splits=args.train.n_folds, shuffle=True, random_state=args.train.seed)
+    kf = StratifiedKFold(n_splits=args.train.n_folds, shuffle=True, random_state=args.train.seed)
     df["fold"] = -1
     fold_idx = len(df.columns) - 1
 
     y = df[args.data.labels]
-    for i, (_, dev_index) in enumerate(kf.split(range(len(df)), y.values.argmax(-1))):
+    for i, (_, dev_index) in enumerate(kf.split(range(len(df)), y.values)):
         df.iloc[dev_index, fold_idx] = i
 
     return (
@@ -29,7 +29,7 @@ def get_data_groups(args):
     train = pd.read_csv(args.data.train, nrows=100 if args.general.debug else None)
     root = Path(args.data.root)
     train.filename = train.filename.apply(lambda x: str(root / x))
-    args.data.labels = train.columns[1:].tolist()
+    args.data.labels = 'relapse'
 
     train, dev = split_df(train, args)
 
