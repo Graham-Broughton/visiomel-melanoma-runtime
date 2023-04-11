@@ -28,8 +28,8 @@ import skimage.future as sk_future
 import skimage.morphology as sk_morphology
 import skimage.segmentation as sk_segmentation
 
-from wsi import slide, util
-from wsi.util import Time
+from . import slides, util
+from .util import Time
 
 
 def filter_rgb_to_grayscale(np_img, output_type="uint8"):
@@ -1031,15 +1031,15 @@ def apply_filters_to_image(slide_name, save=True, display=False):
 
     info = dict()
 
-    if save and not os.path.exists(slide.FILTER_DIR):
-        os.makedirs(slide.FILTER_DIR)
+    if save and not os.path.exists(slides.FILTER_DIR):
+        os.makedirs(slides.FILTER_DIR)
 
-    np_orig = slide.get_slide(slide_name)
+    np_orig = slides.get_slide(slide_name)
     filtered_np_img = apply_image_filters(
         np_orig, slide_name, info, save=False, display=False)
 
     if save:
-        result_path = slide.get_filter_image_result(slide_name)
+        result_path = slides.get_filter_image_result(slide_name)
         pil_img = util.np_to_pil(filtered_np_img)
         pil_img.save(result_path)
 
@@ -1104,7 +1104,7 @@ def save_filtered_image(np_img, slide_name, filter_num, filter_text):
       filter_text: Descriptive text to add to the image filename.
     """
     t = Time()
-    filepath = slide.get_filter_image_path(slide_name, filter_num, filter_text)
+    filepath = slides.get_filter_image_path(slide_name, filter_num, filter_text)
     pil_img = util.np_to_pil(np_img)
     pil_img.save(filepath)
     print("%-20s | Time: %-14s  Name: %s" %
@@ -1179,8 +1179,8 @@ def multiprocess_apply_filters_to_images(save=True, display=False, html=False, i
     timer = Time()
     print("Applying filters to images (multiprocess)\n")
 
-    if save and not os.path.exists(slide.FILTER_DIR):
-        os.makedirs(slide.FILTER_DIR)
+    if save and not os.path.exists(slides.FILTER_DIR):
+        os.makedirs(slides.FILTER_DIR)
 
     # how many processes to use
     # multiprocessing.cpu_count()

@@ -11,8 +11,8 @@ import PIL
 import skimage.io as sk
 from PIL import Image
 
-from wsi import util
-from wsi.util import Time
+from . import util
+from .util import Time
 
 BASE_DIR = "./workspace/"
 SRC_TRAIN_DIR = "./data/"

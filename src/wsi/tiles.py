@@ -1,7 +1,7 @@
-from wsi.util import Time
-from wsi import slide
-from wsi import filters
-from wsi import util
+from .util import Time
+from . import slides
+from . import filters
+from . import util
 from enum import Enum
 from PIL import Image, ImageDraw, ImageFont
 import os
@@ -362,7 +362,7 @@ def save_tile_summary_image(pil_img, slide_name):
       slide_name: The slide name.
     """
     t = Time()
-    filepath = slide.get_tile_summary_image_path(slide_name)
+    filepath = slides.get_tile_summary_image_path(slide_name)
     pil_img.save(filepath)
     print("%-20s | Time: %-14s  Name: %s" %
           ("Save Tile Sum", str(t.elapsed()), filepath))
@@ -376,7 +376,7 @@ def save_top_tiles_image(pil_img, slide_name):
       slide_name: The slide name.
     """
     t = Time()
-    filepath = slide.get_top_tiles_image_path(slide_name)
+    filepath = slides.get_top_tiles_image_path(slide_name)
     pil_img.save(filepath)
     print("%-20s | Time: %-14s  Name: %s" %
           ("Save Top Tiles Image", str(t.elapsed()), filepath))
@@ -390,7 +390,7 @@ def save_tile_summary_on_original_image(pil_img, slide_name):
       slide_name: The slide name.
     """
     t = Time()
-    filepath = slide.get_tile_summary_on_original_image_path(slide_name)
+    filepath = slides.get_tile_summary_on_original_image_path(slide_name)
     pil_img.save(filepath)
     print("%-20s | Time: %-14s  Name: %s" %
           ("Save Tile Sum Orig", str(t.elapsed()), filepath))
@@ -404,7 +404,7 @@ def save_top_tiles_on_original_image(pil_img, slide_name):
       slide_name: The slide name.
     """
     t = Time()
-    filepath = slide.get_top_tiles_on_original_image_path(slide_name)
+    filepath = slides.get_top_tiles_on_original_image_path(slide_name)
     pil_img.save(filepath)
     print("%-20s | Time: %-14s  Name: %s" %
           ("Save Top Orig", str(t.elapsed()), filepath))
@@ -421,8 +421,8 @@ def summary_and_tiles(slide_name, display=False, save_summary=False, save_data=T
       save_top_tiles: If True, save top tiles to files.
     """
     # @todo - dynamic filters from original slide
-    img_path = slide.get_filter_image_result(slide_name)
-    np_img = slide.open_image_np(img_path)
+    img_path = slides.get_filter_image_result(slide_name)
+    np_img = slides.open_image_np(img_path)
 
     tile_sum = score_tiles(slide_name, np_img)
     if save_data:
@@ -459,7 +459,7 @@ def save_tile_data(tile_summary):
             t.s_and_v_factor, t.quantity_factor, t.score)
         csv += line
 
-    data_path = slide.get_tile_data_path(tile_summary.slide_name)
+    data_path = slides.get_tile_data_path(tile_summary.slide_name)
     csv_file = open(data_path, "w")
     csv_file.write(csv)
     csv_file.close()
@@ -477,8 +477,8 @@ def tile_to_pil_tile(tile):
       Tile as a PIL image.
     """
     t = tile
-    slide_filepath = slide.get_training_slide_path(t.slide_name)
-    s = slide.open_slide(slide_filepath)
+    slide_filepath = slides.get_training_slide_path(t.slide_name)
+    s = slides.open_slide(slide_filepath)
 
     x, y = t.o_c_s, t.o_r_s
     w, h = t.o_c_e - t.o_c_s, t.o_r_e - t.o_r_s
@@ -513,7 +513,7 @@ def save_display_tile(tile, save=True, display=False):
 
     if save:
         t = Time()
-        img_path = slide.get_tile_image_path(tile)
+        img_path = slides.get_tile_image_path(tile)
         dir = os.path.dirname(img_path)
         if not os.path.exists(dir):
             os.makedirs(dir)
@@ -733,7 +733,7 @@ def singleprocess_filtered_images_to_tiles(display=False, save_summary=True, sav
         image_list, tile_summaries_dict = image_list_to_tiles(image_list, display, save_summary, save_data,
                                                               save_top_tiles)
     else:
-        num_training_slides = slide.get_num_training_slides()
+        num_training_slides = slides.get_num_training_slides()
         image_list, tile_summaries_dict = image_range_to_tiles(1, num_training_slides, display, save_summary, save_data,
                                                                save_top_tiles)
 
@@ -758,8 +758,8 @@ def multiprocess_filtered_images_to_tiles(display=False, save_summary=True, save
     timer = Time()
     print("Generating tile summaries (multiprocess)\n")
 
-    if save_summary and not os.path.exists(slide.TILE_SUMMARY_DIR):
-        os.makedirs(slide.TILE_SUMMARY_DIR)
+    if save_summary and not os.path.exists(slides.TILE_SUMMARY_DIR):
+        os.makedirs(slides.TILE_SUMMARY_DIR)
 
     # how many processes to use
     # multiprocessing.cpu_count()
@@ -976,8 +976,8 @@ def display_image(np_rgb, text=None, scale_up=False):
       scale_up: If True, scale up image to display by slide.SCALE_FACTOR
     """
     if scale_up:
-        np_rgb = np.repeat(np_rgb, slide.SCALE_FACTOR, axis=1)
-        np_rgb = np.repeat(np_rgb, slide.SCALE_FACTOR, axis=0)
+        np_rgb = np.repeat(np_rgb, slides.SCALE_FACTOR, axis=1)
+        np_rgb = np.repeat(np_rgb, slides.SCALE_FACTOR, axis=0)
 
     img_r, img_c, img_ch = np_rgb.shape
     if text is not None:
@@ -1193,7 +1193,7 @@ class TileSummary:
     orig_h = None
     orig_tile_w = None
     orig_tile_h = None
-    scale_factor = slide.SCALE_FACTOR
+    scale_factor = slides.SCALE_FACTOR
     scaled_w = None
     scaled_h = None
     scaled_tile_w = None
@@ -1370,7 +1370,7 @@ def dynamic_tiles(slide_name, small_tile_in_tile=False):
        TileSummary object with list of top Tile objects. The actual tile images are not retrieved until the
        Tile get_tile() methods are called.
     """
-    np_img = slide.get_slide(slide_name)
+    np_img = slides.get_slide(slide_name)
     filt_np_img = filters.apply_image_filters(np_img)
     tile_summary = score_tiles(slide_name, filt_np_img, small_tile_in_tile)
     return tile_summary

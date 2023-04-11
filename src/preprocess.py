@@ -18,7 +18,7 @@ import multiprocessing
 import argparse
 from datetime import timedelta
 
-from wsi import slide, filters, tiles, util
+from wsi import filters, tiles, util, slides
 
 START_TIME = time.time()
 logging.basicConfig(level=logging.INFO)
@@ -52,7 +52,7 @@ for page in PAGES_TO_EXTRACT[48]:
 for page in PAGES_TO_EXTRACT[64]:
     os.makedirs(f'{DIR_OUTPUT[64]}/{page}', exist_ok=True)
 
-slide.SRC_TRAIN_DIR = args.dir_input_tif
+slides.SRC_TRAIN_DIR = args.dir_input_tif
 RANDOM_STATE = 41
 
 
@@ -128,7 +128,7 @@ def gen_tiles(DIR_INPUT_TIF, dir_output, df_tile_data, pages_to_extract):
 def generate_tiles_for_slide_list(slide_names, dir_output, pages_to_extract):
     for slide_name in slide_names:
         # ##generate tiles
-        df = pd.read_csv(f'{slide.TILE_DATA_DIR}/{slide_name}-tile_data.csv',
+        df = pd.read_csv(f'{slides.TILE_DATA_DIR}/{slide_name}-tile_data.csv',
                          skiprows=14).sort_values(by='Score', ascending=False).reset_index(drop=True)
         # filter scores
         df1 = df[df.Score > 0]
@@ -197,8 +197,8 @@ gc.collect()
 # 48
 BASE_SZ = 48
 tiles.TILE_SIZE_BASE = BASE_SZ
-slide.TILE_DATA_DIR = os.path.join(slide.BASE_DIR, f"tile_data/{BASE_SZ}")
-slide.TOP_TILES_DIR = os.path.join(slide.BASE_DIR, f"top_tiles/{BASE_SZ}")
+slides.TILE_DATA_DIR = os.path.join(slides.BASE_DIR, f"tile_data/{BASE_SZ}")
+slides.TOP_TILES_DIR = os.path.join(slides.BASE_DIR, f"top_tiles/{BASE_SZ}")
 
 # maximum number of tiles to extract per page
 MAX_TILES_PER_PAGE = {1: 24, 2: 48, 3: 96, 4: 128}
@@ -226,8 +226,8 @@ gc.collect()
 # 64
 BASE_SZ = 64
 tiles.TILE_SIZE_BASE = BASE_SZ
-slide.TILE_DATA_DIR = os.path.join(slide.BASE_DIR, f"tile_data/{BASE_SZ}")
-slide.TOP_TILES_DIR = os.path.join(slide.BASE_DIR, f"top_tiles/{BASE_SZ}")
+slides.TILE_DATA_DIR = os.path.join(slides.BASE_DIR, f"tile_data/{BASE_SZ}")
+slides.TOP_TILES_DIR = os.path.join(slides.BASE_DIR, f"top_tiles/{BASE_SZ}")
 
 # maximum number of tiles to extract per page
 MAX_TILES_PER_PAGE = {2: 48, 3: 64, 4: 128}
