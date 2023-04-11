@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import PIL
 import skimage.io as sk
+import pyvips
 from PIL import Image
 
 from . import util
@@ -54,9 +55,8 @@ def get_slide(slide_name):
     Returns:
       An skimage object representing a whole-slide image.
     """
-    return sk.MultiImage(f'{SRC_TRAIN_DIR}/{slide_name}.{SLIDE_EXT}')[
-        BASE_PAGE
-    ]
+    image = pyvips.Image.new_from_file(f'{SRC_TRAIN_DIR}/{slide_name}.{SLIDE_EXT}', page=BASE_PAGE)
+    return np.asarray(image)
 
 
 def open_image(filename):

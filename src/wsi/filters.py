@@ -931,7 +931,7 @@ def filter_grays(rgb, tolerance=15, output_type="bool"):
     t = Time()
     (h, w, c) = rgb.shape
 
-    rgb = rgb.astype(np.int)
+    rgb = rgb.astype(int)
     rg_diff = abs(rgb[:, :, 0] - rgb[:, :, 1]) <= tolerance
     rb_diff = abs(rgb[:, :, 0] - rgb[:, :, 2]) <= tolerance
     gb_diff = abs(rgb[:, :, 1] - rgb[:, :, 2]) <= tolerance
@@ -1184,7 +1184,7 @@ def multiprocess_apply_filters_to_images(save=True, display=False, html=False, i
 
     # how many processes to use
     # multiprocessing.cpu_count()
-    num_processes = min(multiprocessing.cpu_count(), 5)
+    num_processes = max(multiprocessing.cpu_count(), 5)
     pool = multiprocessing.Pool(num_processes)
 
     if image_name_list is not None:

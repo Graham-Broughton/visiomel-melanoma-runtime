@@ -147,7 +147,7 @@ def multiprocess_generate_tiles(dir_output, pages_to_extract):
     slides_list = list(df_input.tissue_id.unique())
     num_slides = len(slides_list)
 
-    num_processes = min(multiprocessing.cpu_count(), 5)
+    num_processes = max(multiprocessing.cpu_count(), 5)
     pool = multiprocessing.Pool(num_processes)
 
     if num_processes > num_slides:
