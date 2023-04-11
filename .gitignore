@@ -69,3 +69,4 @@ data/originals/*
 **.tif
 **.tfrec
 **.png
+workspace/tiles/data/**
