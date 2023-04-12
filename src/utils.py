@@ -107,3 +107,14 @@ def concat_tiles(tiles, n_tiles, image_size, rand=False, transform=None):
         img = transform(img)
 
     return img
+
+import cv2
+
+def resize_image(image, current_mpp, target_mpp):
+    # Calculate the resizing factor
+    resizing_factor = current_mpp / target_mpp
+
+    # Resize the image using the resizing factor
+    resized_image = cv2.resize(image, None, fx=resizing_factor, fy=resizing_factor)
+
+    return resized_image

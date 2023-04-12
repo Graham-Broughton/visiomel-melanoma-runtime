@@ -37,7 +37,7 @@ FILE_INPUT_CSV = args.file_meta  # 'data/train_metadata_eRORy1H.csv'
 # ./workspace/tiles/train/
 DIR_OUTPUT_TILES = f'./workspace/tiles/{args.dir_output}/'
 
-PAGE_IX_MULS = {1: 16, 2: 8, 3: 4, 4: 2}
+PAGE_IX_MULS = {0: 32, 1: 16, 2: 8, 3: 4, 4: 2}
 DIR_OUTPUT = {}
 DIR_OUTPUT[48] = f'{DIR_OUTPUT_TILES}/48/'
 DIR_OUTPUT[64] = f'{DIR_OUTPUT_TILES}/64/'
