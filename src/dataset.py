@@ -8,7 +8,7 @@ import argparse
 import PIL
 import cv2
 from fastai.vision.all import *
-from fastai.callback.cutmix import *
+from fastai.callback.mixup import CutMix
 
 from sklearn.model_selection import KFold, StratifiedKFold
 import matplotlib.pyplot as plt
@@ -18,21 +18,29 @@ from types import SimpleNamespace
 warnings.filterwarnings("ignore")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--train_labels")
-parser.add_argument("--model_id")
-args = parser.parse_args()
+# parser = argparse.ArgumentParser()
+# parser.add_argument("--train_labels")
+# parser.add_argument("--model_id")
+# args = parser.parse_args()
 
-print(args)
 
-TRAIN_LABELS = args.train_labels  # './data/train_labels.csv'
+TRAIN_LABELS = '../data/train_labels.csv'
 DIR_WORKSPACE = './workspace/'
 DIR_MODEL = f'{DIR_WORKSPACE}/models/'  # models output directory
 os.makedirs(DIR_MODEL, exist_ok=True)
 
-NUM_CLASSES = 4
+NUM_CLASSES = 1
 nfolds = 5
-config = {}
+
+
+class config:
+    seed = 42
+    fold = 0
+    N_MAX = 128
+    N = 72
+    sz = 384
+    bs = 8
+
 
 
 def fix_seed(seed):
@@ -48,13 +56,7 @@ def fix_seed(seed):
 def get_dftrain(dir_train):
     df_labels = pd.read_csv(TRAIN_LABELS)
     df = pd.DataFrame()
-    for i in range(4):
-        i = str(i)
-        d = df_labels[df_labels[i] == 1].rename(columns={i: 'label'})[
-            ['filename', 'label']]
-        d['label'] = int(i)
-        df = df.append(d)
-    df_labels = df.sort_values(by='filename').reset_index(drop=True)
+    df_labels = df_labels.sort_values(by='filename').reset_index(drop=True)
     df_labels['tissue_id'] = df_labels.filename.str.split('.').str[0].values
 
     df = df_labels.set_index('tissue_id')
@@ -64,8 +66,8 @@ def get_dftrain(dir_train):
         by=['tissue_id']).reset_index(drop=True)
     splits = StratifiedKFold(
         n_splits=nfolds, random_state=config.seed, shuffle=True)
-    splits = list(splits.split(df, df.label))
-    folds_splits = np.zeros(len(df)).astype(np.int)
+    splits = list(splits.split(df, df['relapse']))
+    folds_splits = np.zeros(len(df)).astype(int)
     for i in range(nfolds):
         folds_splits[splits[i][1]] = i
     df['split'] = folds_splits
@@ -156,7 +158,7 @@ def create_batch(data):
     return TensorImage(xs), TensorCategory(ys)
 
 
-def show_tile_batch(max_rows=4, max_cols=5):
+def show_tile_batch(dls, max_rows=4, max_cols=5):
     xb, yb = dls.one_batch()
     fig, axes = plt.subplots(
         ncols=max_cols, nrows=max_rows, figsize=(12, 6), dpi=120)
@@ -219,7 +221,7 @@ def get_dataloader(df_train):
         return t[-1]
     dblock = DataBlock(
         blocks=(TissueTilesBlock, CategoryBlock),
-        get_items=TissueGetItems('path', 'tissue_id', 'label', config.N_MAX),
+        get_items=TissueGetItems('path', 'tissue_id', 'relapse', config.N_MAX),
         get_x=get_x,
         get_y=get_y,
         splitter=splitter,

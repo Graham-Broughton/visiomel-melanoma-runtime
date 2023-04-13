@@ -43,8 +43,8 @@ DIR_OUTPUT[48] = f'{DIR_OUTPUT_TILES}/48/'
 DIR_OUTPUT[64] = f'{DIR_OUTPUT_TILES}/64/'
 
 PAGES_TO_EXTRACT = {}
-PAGES_TO_EXTRACT[48] = [2, 3, 4]
-PAGES_TO_EXTRACT[64] = [2, 3, 4]
+PAGES_TO_EXTRACT[48] = [0, 1, 2, 3, 4]
+PAGES_TO_EXTRACT[64] = [0, 1, 2, 3, 4]
 
 for page in PAGES_TO_EXTRACT[48]:
     os.makedirs(f'{DIR_OUTPUT[48]}/{page}', exist_ok=True)
@@ -176,7 +176,7 @@ def multiprocess_generate_tiles(dir_output, pages_to_extract):
 df_input = pd.read_csv(FILE_INPUT_CSV)
 df_input = df_input[df_input.filename.isin([f for f in os.listdir(
     DIR_INPUT_TIF) if f.split('.')[-1] == 'tif'])].reset_index(drop=True)
-df_input = df_input[['filename']]
+df_input = df_input[['filename', 'resolution']]
 df_input['tissue_id'] = df_input.filename.str.split('.').str[0].values
 logger.info('loaded training file')
 
@@ -184,11 +184,11 @@ logger.info('loaded training file')
 # Generate tiles
 logger.info('************** GENERATING MASKS *********************')
 
-NAMES = [n.split('.')[0] for n in df_input.filename.values]
+NAMES = df_input[['tissue_id', 'resolution']].values.tolist()
 df_submission = pd.DataFrame()
 
 n_files = len(NAMES)
-filters.multiprocess_apply_filters_to_images(image_name_list=NAMES)
+filters.multiprocess_apply_filters_to_images(image_name_tuple=NAMES)
 elapsed = time.time() - START_TIME
 logger.info(
     f'######### DONE GENERATING MASKS ######## TOTAL TIME: {timedelta(seconds=elapsed)}')
@@ -201,9 +201,9 @@ slides.TILE_DATA_DIR = os.path.join(slides.BASE_DIR, f"tile_data/{BASE_SZ}")
 slides.TOP_TILES_DIR = os.path.join(slides.BASE_DIR, f"top_tiles/{BASE_SZ}")
 
 # maximum number of tiles to extract per page
-MAX_TILES_PER_PAGE = {1: 24, 2: 48, 3: 96, 4: 128}
+MAX_TILES_PER_PAGE = {0: 12, 1: 24, 2: 48, 3: 96, 4: 128}
 # patch size to extract for each page
-PATCH_SIZES_ACT = {1: 768, 2: 384, 3: 192, 4: 96}
+PATCH_SIZES_ACT = {0: 768, 1: 768, 2: 384, 3: 192, 4: 96}
 
 logger.info(f'********* GENERATING TILE META {BASE_SZ} **********')
 tiles.multiprocess_filtered_images_to_tiles(
@@ -230,9 +230,9 @@ slides.TILE_DATA_DIR = os.path.join(slides.BASE_DIR, f"tile_data/{BASE_SZ}")
 slides.TOP_TILES_DIR = os.path.join(slides.BASE_DIR, f"top_tiles/{BASE_SZ}")
 
 # maximum number of tiles to extract per page
-MAX_TILES_PER_PAGE = {2: 48, 3: 64, 4: 128}
+MAX_TILES_PER_PAGE = {0: 12, 1: 24, 2: 48, 3: 64, 4: 128}
 # patch size to extract for each page
-PATCH_SIZES_ACT = {2: 512, 3: 256, 4: 128}
+PATCH_SIZES_ACT = {0:1024, 1:1024, 2: 512, 3: 256, 4: 128}
 
 logger.info(f'********* GENERATING TILE META {BASE_SZ} **********')
 tiles.multiprocess_filtered_images_to_tiles(

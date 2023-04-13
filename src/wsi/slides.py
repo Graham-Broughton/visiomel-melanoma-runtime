@@ -47,7 +47,7 @@ TILE_SUFFIX = "tile"
 STATS_DIR = os.path.join(BASE_DIR, "stats")
 
 
-def get_slide(slide_name):
+def get_slide(slide_name, res):
     """
     Open a whole-slide image (*.tif).
     Args:
@@ -55,7 +55,9 @@ def get_slide(slide_name):
     Returns:
       An skimage object representing a whole-slide image.
     """
+    resizing_factor = res / 0.25
     image = pyvips.Image.new_from_file(f'{SRC_TRAIN_DIR}/{slide_name}.{SLIDE_EXT}', page=BASE_PAGE)
+    image = image.affine((resizing_factor, 0, 0, resizing_factor))
     return np.asarray(image)
 
 
