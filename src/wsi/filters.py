@@ -1015,7 +1015,7 @@ def apply_image_filters(np_img, slide_name=None, info=None, save=False, display=
     return img
 
 
-def apply_filters_to_image(slide_name, res, save=True, display=False):
+def apply_filters_to_image(slide_name, res=None, save=True, display=False):
     """
     Apply a set of filters to an image and optionally save and/or display filtered images.
     Args:
@@ -1111,7 +1111,7 @@ def save_filtered_image(np_img, slide_name, filter_num, filter_text):
           ("Save Image", str(t.elapsed()), filepath))
 
 
-def apply_filters_to_image_list(image_name_tuple, save, display):
+def apply_filters_to_image_list(names, save, display, ress=None):
     """
     Apply filters to a list of images.
     Args:
@@ -1122,11 +1122,17 @@ def apply_filters_to_image_list(image_name_tuple, save, display):
       Tuple consisting of 1) a list of image names, and 2) a dictionary of image filter information.
     """
     html_page_info = dict()
-    for slide_name, res in image_name_tuple:
-        _, info = apply_filters_to_image(
-            slide_name, res, save=save, display=display)
-        html_page_info.update(info)
-    return image_name_tuple[0], html_page_info
+    if ress is not None:
+        for slide_name, res in zip(names, ress):
+            _, info = apply_filters_to_image(
+                slide_name, res, save=save, display=display)
+            html_page_info.update(info)
+    else:
+        for slide_name in names:
+            _, info = apply_filters_to_image(
+                slide_name, save=save, display=display)
+            html_page_info.update(info)
+    return slide_name, html_page_info
 
 
 def apply_filters_to_image_range(start_ind, end_ind, save, display):
@@ -1167,7 +1173,7 @@ def singleprocess_apply_filters_to_images(save=True, display=False, html=False, 
     print("Time to apply filters to all images: %s\n" % str(t.elapsed()))
 
 
-def multiprocess_apply_filters_to_images(save=True, display=False, html=False, image_name_tuple=None):
+def multiprocess_apply_filters_to_images(save=True, display=False, html=False, names=None, ress=None):
     """
     Apply a set of filters to all training images using multiple processes (one process per core).
     Args:
@@ -1187,8 +1193,8 @@ def multiprocess_apply_filters_to_images(save=True, display=False, html=False, i
     num_processes = max(multiprocessing.cpu_count(), 5)
     pool = multiprocessing.Pool(num_processes)
 
-    if image_name_tuple is not None:
-        num_train_images = len(image_name_tuple)
+    if names is not None:
+        num_train_images = len(names)
 
     if num_processes > num_train_images:
         num_processes = num_train_images
@@ -1203,11 +1209,15 @@ def multiprocess_apply_filters_to_images(save=True, display=False, html=False, i
         end_index = num_process * images_per_process
         start_index = int(start_index)
         end_index = int(end_index)
-        if image_name_tuple is not None:
-            sublist = image_name_tuple[start_index - 1:end_index]
-            tasks.append((sublist, save, display))
+        if names is not None:
+            name = names[start_index - 1:end_index]
+            if ress is not None:
+                res = ress[start_index - 1:end_index]
+                tasks.append((name, save, display, res))
+            else:
+                tasks.append((name, save, display))
             print("Task #" + str(num_process) +
-                  ": Process slides " + str(sublist[0]))
+                  ": Process slides " + str(name))
         else:
             tasks.append((start_index, end_index, save, display))
             if start_index == end_index:
@@ -1220,14 +1230,14 @@ def multiprocess_apply_filters_to_images(save=True, display=False, html=False, i
     # start tasks
     results = []
     for t in tasks:
-        if image_name_tuple is not None:
+        if names is not None:
             results.append(pool.apply_async(apply_filters_to_image_list, t))
         else:
             results.append(pool.apply_async(apply_filters_to_image_range, t))
 
     html_page_info = dict()
     for result in results:
-        if image_name_tuple is not None:
+        if names is not None:
             (image_nums, html_page_info_res) = result.get()
             html_page_info.update(html_page_info_res)
             print("Done filtering slides: %s" % image_nums)

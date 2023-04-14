@@ -40,7 +40,6 @@ TOP_TILES_ON_ORIGINAL_DIR = os.path.join(
     BASE_DIR, f"{TOP_TILES_SUFFIX}_on_original_{DEST_TRAIN_EXT}"
 )
 
-
 TILE_DIR = os.path.join(BASE_DIR, f"tiles_{DEST_TRAIN_EXT}")
 TILE_SUFFIX = "tile"
 
@@ -55,9 +54,12 @@ def get_slide(slide_name, res):
     Returns:
       An skimage object representing a whole-slide image.
     """
-    resizing_factor = res / 0.25
-    image = pyvips.Image.new_from_file(f'{SRC_TRAIN_DIR}/{slide_name}.{SLIDE_EXT}', page=BASE_PAGE)
-    image = image.affine((resizing_factor, 0, 0, resizing_factor))
+    if res is not None:
+        resizing_factor = res / 0.25
+        image = pyvips.Image.new_from_file(f'{SRC_TRAIN_DIR}/{slide_name}.{SLIDE_EXT}', page=BASE_PAGE)
+        image = image.affine((resizing_factor, 0, 0, resizing_factor))
+    else:
+        image = pyvips.Image.new_from_file(f'{SRC_TRAIN_DIR}/{slide_name}.{SLIDE_EXT}', page=BASE_PAGE)
     return np.asarray(image)
 
 

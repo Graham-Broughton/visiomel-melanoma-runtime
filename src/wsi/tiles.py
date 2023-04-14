@@ -1359,7 +1359,7 @@ class TissueQuantity(Enum):
     HIGH = 3
 
 
-def dynamic_tiles(slide_name, small_tile_in_tile=False):
+def dynamic_tiles(slide_name, res, small_tile_in_tile=False):
     """
     Generate tile summary with top tiles using original WSI training slide without intermediate image files saved to
     file system.
@@ -1370,13 +1370,13 @@ def dynamic_tiles(slide_name, small_tile_in_tile=False):
        TileSummary object with list of top Tile objects. The actual tile images are not retrieved until the
        Tile get_tile() methods are called.
     """
-    np_img = slides.get_slide(slide_name)
+    np_img = slides.get_slide(slide_name, res)
     filt_np_img = filters.apply_image_filters(np_img)
     tile_summary = score_tiles(slide_name, filt_np_img, small_tile_in_tile)
     return tile_summary
 
 
-def dynamic_tile(slide_name, row, col, small_tile_in_tile=False):
+def dynamic_tile(slide_name, res, row, col, small_tile_in_tile=False):
     """
     Generate a single tile dynamically based on slide name, row, and column. If more than one tile needs to be
     retrieved dynamically, dynamic_tiles() should be used.
@@ -1388,7 +1388,7 @@ def dynamic_tile(slide_name, row, col, small_tile_in_tile=False):
     Returns:
       Tile tile object.
     """
-    tile_summary = dynamic_tiles(slide_name, small_tile_in_tile)
+    tile_summary = dynamic_tiles(slide_name, res, small_tile_in_tile)
     tile = tile_summary.get_tile(row, col)
     return tile
 

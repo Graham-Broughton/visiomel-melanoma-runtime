@@ -184,11 +184,13 @@ logger.info('loaded training file')
 # Generate tiles
 logger.info('************** GENERATING MASKS *********************')
 
-NAMES = df_input[['tissue_id', 'resolution']].values.tolist()
+NAMES = [n.split('.')[0] for n in df_input.filename.values]
+RESOLUTION = df_input['resolution'].values.tolist()
+IMAGE_DICT = {'names': NAMES, 'resolution': RESOLUTION}
 df_submission = pd.DataFrame()
 
 n_files = len(NAMES)
-filters.multiprocess_apply_filters_to_images(image_name_tuple=NAMES)
+filters.multiprocess_apply_filters_to_images(names=NAMES)
 elapsed = time.time() - START_TIME
 logger.info(
     f'######### DONE GENERATING MASKS ######## TOTAL TIME: {timedelta(seconds=elapsed)}')

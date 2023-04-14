@@ -42,7 +42,6 @@ class config:
     bs = 8
 
 
-
 def fix_seed(seed):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
