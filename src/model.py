@@ -1,66 +1,72 @@
-import pandas as pd
-import numpy as np
-import os
-import random
-import shutil
-import time
-import argparse
-import PIL
-import cv2
-from fastai.vision.all import *
-from fastai.callback.mixup import CutMix
+import torch
+import torch.nn.functional as F
+import torch.nn as nn
 
-from sklearn.model_selection import KFold, StratifiedKFold
-import matplotlib.pyplot as plt
-from tqdm.auto import tqdm
-from types import SimpleNamespace
+class Attention(nn.Module):
+    def __init__(self):
+        super(Attention, self).__init__()
+        self.L = 512 # 512 node fully connected layer
+        self.D = 128 # 128 node attention layer
+        self.K = 1
 
-warnings.filterwarnings("ignore")
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.feature_extractor_part1 = nn.Sequential(
+            nn.Conv2d(3, 36, kernel_size=4),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride=2),
+            nn.Conv2d(36, 48, kernel_size=3),
+            nn.ReLU(),
+            nn.MaxPool2d(2, stride=2)
+        )
 
+        self.feature_extractor_part2 = nn.Sequential(
+            nn.Linear(48 * 30 * 30, self.L),
+            nn.ReLU(),
+            nn.Dropout(),
+            nn.Linear(self.L, self.L),
+            nn.ReLU(),
+            nn.Dropout()
+        )
 
-class Model(nn.Module):
-    def __init__(self,MODEL,NORM,pre=True):
-        super().__init__()
-        if MODEL == 'ResX50':
-          ##resnext model
-          m = torch.hub.load('facebookresearch/semi-supervised-ImageNet1K-models', 'resnext50_32x4d_ssl')
-          print('loaded ResNext model')
-        elif MODEL == 'ResS50':
-          ##resnest model
-          m = torch.hub.load('zhanghang1989/ResNeSt', 'resnest50', pretrained=pre)
-          print('loaded ResNest model')
-        blocks = [*m.children()]
-        enc = blocks[:-2]
-        self.enc = nn.Sequential(*enc)
-        C = blocks[-1].in_features
-        head = [AdaptiveConcatPool2d(),
-                Flatten(), #bs x 2*C
-                nn.Linear(2*C,512),
-                Mish()
-                ]
-        if NORM == 'GN':
-          head.append(nn.GroupNorm(32,512))
-          print('Group Norm')
-        elif NORM == 'BN':
-          head.append(nn.BatchNorm1d(512))
-          print('Batch Norm')
+        self.attention = nn.Sequential(
+            nn.Linear(self.L, self.D),
+            nn.Tanh(),
+            nn.Linear(self.D, self.K)
+        )
 
-        head.append(nn.Dropout(0.5))
-        head.append(nn.Linear(512,NUM_CLASSES-1))
-        self.head = nn.Sequential(*head)
+        self.classifier = nn.Sequential(
+            nn.Linear(self.L * self.K, 1),
+            nn.Sigmoid()
+        )
 
-    def forward(self, *x):
-        shape = x[0].shape
-        n = shape[1]## n_tiles
-        x = torch.stack(x,1).view(-1,shape[2],shape[3],shape[4])
-        x = self.enc(x)
-        shape = x.shape
-        x = x.view(-1,n,shape[1],shape[2],shape[3]).permute(0,2,1,3,4).contiguous().view(-1,shape[1],shape[2]*n,shape[3])
-        x = self.head(x)
-        return x
+    def forward(self, x):
+        x = x.squeeze(0)
 
+        H = self.feature_extractor_part1(x)
+        H = H.view(-1, 48 * 30 * 30)
+        H = self.feature_extractor_part2(H)
 
-def acc(inp, targ):
-    pred = torch.sigmoid(inp).sum(1).round()
-    return (pred==targ).float().mean()
+        A = self.attention(H) # NxK
+        A = torch.transpose(A, 1, 0) # KxN
+        A = F.softmax(A, dim=1) # softmax over N
+
+        M = torch.mm(A, H)
+
+        Y_prob = self.classifier(M)
+        Y_hat = torch.ge(Y_prob, 0.5).float()
+
+        return Y_prob, Y_hat, A.byte()
+
+  def calculate_classification_error(self, X, Y):
+      Y = Y.float()
+      _, Y_hat, _ = self.forward(X)
+      error = 1. - Y_hat.eq(Y).cpu().float().mean().data
+
+      return error, Y_hat
+
+  def calculate_objective(self, X, Y):
+      Y = Y.float()
+      Y_prob, _, A = self.forward(X)
+      Y_prob = torch.clamp(Y_prob, min=1e-5, max=1. - 1e-5)
+      neg_log_likelihood = -1. * (Y * torch.log(Y_prob) + (1. - Y) * torch.log(1. - Y_prob))
+
+      return neg_log_likelihood, A
