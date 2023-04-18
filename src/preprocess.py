@@ -131,7 +131,7 @@ def generate_tiles_for_slide_list(slide_names, dir_output, pages_to_extract):
         df = pd.read_csv(f'{slides.TILE_DATA_DIR}/{slide_name}-tile_data.csv',
                          skiprows=14).sort_values(by='Score', ascending=False).reset_index(drop=True)
         # filter scores
-        df1 = df[df.Score > 0]
+        df1 = df[df.Score > 0.1]
         if len(df1) >= 1:
             df = df1
         else:

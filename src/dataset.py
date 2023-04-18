@@ -59,7 +59,7 @@ def get_dftrain(dir_train):
     df_labels['tissue_id'] = df_labels.filename.str.split('.').str[0].values
 
     df = df_labels.set_index('tissue_id')
-    files = sorted(set([p[:p.rindex('_')] for p in os.listdir(dir_train)]))
+    files = sorted({p[:p.rindex('_')] for p in os.listdir(dir_train)})
 
     df = df.loc[files].reset_index().sort_values(
         by=['tissue_id']).reset_index(drop=True)
@@ -167,10 +167,11 @@ def show_tile_batch(dls, max_rows=4, max_cols=5):
             if j == max_cols:
                 break
             x = x.cpu()
-            x = mean[..., None, None]+x*std[..., None, None]
-            axes[i, j].imshow(x.permute(1, 2, 0).numpy())
-            axes[i, j].set_title(ys.item())
-            axes[i, j].axis('off')
+            x = mean[..., None, None] + x * std[..., None, None]
+            ax = axes[i, j] # type: ignore
+            ax.imshow(x.permute(1, 2, 0).numpy())
+            ax.set_title(ys.item())
+            ax.axis('off')
 
 
 class SequenceTfms(Transform):
