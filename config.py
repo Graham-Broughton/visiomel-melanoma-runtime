@@ -1,4 +1,5 @@
 import os
+# from typing import Dict
 from dataclasses import dataclass, field
 from typing import List
 
@@ -7,6 +8,7 @@ from traitlets import default
 base = os.path.abspath(os.path.dirname(__file__))
 data = os.path.join(base, 'data')
 src = os.path.join(base, 'src')
+workspace = os.path.join(base, 'workspace')
 
 
 @dataclass
@@ -47,3 +49,15 @@ class CFG:
     workers: int = 2
 
 
+@dataclass
+class LowPixel:
+    BASE_SZ: int = 48
+    MAX_TILES_PER_PAGE: dict = field(default_factory=lambda: ({0: 12, 1: 24, 2: 48, 3: 96, 4: 128})) # [int, int]
+    PATCH_SIZES_ACT: dict = field(default_factory=lambda: ({0: 768, 1: 768, 2: 384, 3: 192, 4: 96})) # [int, int]
+
+
+@dataclass
+class HiPixel:
+    BASE_SZ: int = 64
+    MAX_TILES_PER_PAGE: dict = field(default_factory=lambda: ({0: 12, 1: 24, 2: 48, 3: 64, 4: 128})) # [int, int]
+    PATCH_SIZES_ACT: dict = field(default_factory=lambda: ({0:1024, 1:1024, 2: 512, 3: 256, 4: 128})) # [int, int]

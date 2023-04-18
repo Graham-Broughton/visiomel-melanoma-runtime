@@ -1,350 +1,193 @@
-import argparse
 import os
-import random
-from pathlib import Path
-
-import matplotlib.pyplot as plt
+import argparse
+import time
 import numpy as np
+import pandas as pd
+import pickle
+import loguru
+import random
+
 import torch
-import tqdm
-from box import Box
+import torch.nn.functional as F
+import torch.optim as optim
+import torch.nn as nn
+from torchvision import datasets, transforms
+from torch.autograd import Variable
+from torch.optim.lr_scheduler import StepLR
+import torch.utils.data as data_utils
+import PIL
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
-from dataset import get_loaders
-from loss import get_criterion
-from metric import Accuracy, Score
-from model import get_model, get_opt
-from utils import to_gpu
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, required=True, help="Path to config file")
-    parser.add_argument("--fold", type=int, required=False, default=None)
-
-    args = parser.parse_args()
-
-    config = Box.from_yaml(filename=args.config)
-    if args.fold is not None:
-        config.train.fold = args.fold
-        if config.train.resume:
-            config.train.resume = f"{config.train.resume}/{args.fold}/last.pth"
-
-    return config
+from dataset import get_dftrain, get_dataloader
+from model import Attention
 
 
-def set_seed(seed):
+def fix_seed(seed):
     random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-
-
-def init_dist(args):
-    # to autotune convolutions and other algorithms
-    # to pick the best for current configuration
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
 
-    if args.train.deterministic:
-        set_seed(args.train.seed)
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.deterministic = True
-        torch.set_printoptions(precision=10)
 
-    args.dist.distributed = False
-    if "WORLD_SIZE" in os.environ:
-        args.dist.distributed = int(os.environ["WORLD_SIZE"]) > 1
+def train(model, device, train_loader, valid_loader, optimizer, epoch):
+    model.train()
+    train_loss = 0.
+    train_error = 0.
+    predictions = []
+    labels = []
+    print('epoch = ', epoch)
+    for batch_idx, (data, label) in enumerate(train_loader):
+        if batch_idx % 25 == 0:
+            print('batch_idx = ', batch_idx)
+        bag_label = label
+        data = torch.squeeze(data)
+        data, bag_label = data.cuda(), bag_label.cuda()
+        data, bag_label = Variable(data), Variable(bag_label)
+        data, bag_label = data.to(device), bag_label.to(device)
 
-    args.dist.gpu = 0
-    args.dist.world_size = 1
-    if args.dist.distributed:
-        args.dist.gpu = args.dist.local_rank
-        torch.cuda.set_device(args.gpu)
-        torch.distributed.init_process_group(backend="nccl", init_method="env://")
-        args.dist.world_size = torch.distributed.get_world_size()
+        # Reset gradients
+        optimizer.zero_grad()
+        # Calculate loss
+        loss, error, Y_hat, attention_weights = model.calculate_all(data, bag_label)
+        train_loss += loss.data[0]
+        train_error += error
 
-    assert torch.backends.cudnn.enabled, "Amp requires cudnn backend to be enabled."
+        # Keep track of predictions and labels to calculate accuracy after each epoch
+        predictions.append(int(Y_hat))
+        labels.append(int(bag_label))
+        # Backward pass
+        loss.backward()
+        # Update model weights
+        optimizer.step()
 
+    # Calculate loss and error for epoch
+    train_loss /= len(train_loader)
+    train_error /= len(train_loader)
+    valid_loss, valid_error, vacc = test(model, device, valid_loader)
 
-def epoch_step(
-    loader, desc, model, criterion, metrics, scaler, opt=None, batch_accum=1
-):
-    is_train = opt is not None
-    if is_train:
-        model.train()
-        criterion.train()
-    else:
-        model.eval()
-        criterion.eval()
+    tacc = accuracy_score(labels, predictions) * 100
 
-    pbar = tqdm.tqdm(total=len(loader), desc=desc, leave=False, mininterval=2)
-    loc_loss = n = 0
-    loc_accum = 1
-
-    for x, y in loader:
-        x = to_gpu(x, args.dist.gpu)
-        y = to_gpu(y, args.dist.gpu)
-        # x = x.to(memory_format=torch.channels_last)
-
-        with torch.cuda.amp.autocast():
-            logits = model(x)
-            loss = criterion(logits, y) / batch_accum
-
-        if is_train:
-            scaler.scale(loss).backward()
-
-            if loc_accum == batch_accum:
-                scaler.step(opt)
-                scaler.update()
-                for p in model.parameters():
-                    p.grad = None
-                # opt.zero_grad()
-
-                loc_accum = 1
-            else:
-                loc_accum += 1
-
-            logits = logits.detach()
-
-        bs = len(x)
-        loc_loss += loss.item() * bs * batch_accum
-        n += bs
-
-        for metric in metrics.values():
-            metric.update(logits, y)
-
-        torch.cuda.synchronize()
-
-        if args.dist.local_rank == 0:
-            postfix = {"loss": f"{loc_loss / n:.3f}"}
-            postfix.update(
-                {k: f"{metric.evaluate():.3f}" for k, metric in metrics.items()}
-            )
-            if is_train:
-                postfix.update({"lr": f'{next(iter(opt.param_groups))["lr"]:.3}'})
-            pbar.set_postfix(**postfix)
-            pbar.update()
-
-    if is_train and loc_accum != batch_accum:
-        scaler.step(opt)
-        scaler.update()
-        for p in model.parameters():
-            p.grad = None
-        # opt.zero_grad()
-
-    pbar.close()
-
-    return loc_loss / n
+    print(
+        f'Train Set, Epoch: {epoch}, Loss: {train_loss.cpu().numpy()[0]:.4f}, Error: {train_error:.4f}, Accuracy: {tacc:.2f}'
+    )
+    return train_loss, train_error, tacc, valid_loss, valid_error, vacc
 
 
-def plot_hist(history, path):
-    history_len = len(history)
-    n_rows = history_len // 2 + 1
-    n_cols = 2
-    plt.figure(figsize=(12, 4 * n_rows))
-    for i, (m, vs) in enumerate(history.items()):
-        plt.subplot(n_rows, n_cols, i + 1)
-        for k, v in vs.items():
-            if "loss" in m:
-                ep = np.argmin(v)
-            else:
-                ep = np.argmax(v)
-            plt.title(f"{v[ep]:.4} on {ep}")
-            plt.plot(v, label=f"{k} {v[-1]:.4}")
+def test(model, device, test_loader):
+    model.eval()
+    test_loss = 0.
+    test_error = 0.
+    predictions = []
+    labels = []
+    with torch.no_grad():
+        for batch_idx, (data, label) in enumerate(test_loader):
+            bag_label = label
+            data = torch.squeeze(data)
 
-        plt.xlabel("#epoch")
-        plt.ylabel(f"{m}")
-        plt.legend()
-        plt.grid(ls="--")
+            data, bag_label = Variable(data), Variable(bag_label)
+            data, bag_label = data.to(device), bag_label.to(device)
 
-    plt.tight_layout()
-    plt.savefig(path / "evolution.png")
-    plt.close()
+            loss, error, Y_hat, attention_weights = model.calculate_all(data, bag_label)
+            test_loss += loss.data[0]
+            test_error += error
 
+            predictions.append(int(Y_hat))
+            labels.append(int(bag_label))
 
-def mixup_data(x, y, alpha=1.0):
-    if alpha > 0:
-        lam = np.random.beta(alpha, alpha)
-    else:
-        lam = 1
+        test_error /= len(test_loader)
+        test_loss /= len(test_loader)
+        acc = accuracy_score(labels, predictions)
 
-    bs = x.size(0)
-    index = torch.randperm(bs)
-    mixed_x = lam * x + (1 - lam) * x[index, :]
-
-    return mixed_x, y, y[index], lam
-
-
-def mixup_criterion(criterion, logits, y_a, y_b, lam):
-    return lam * criterion(logits, y_a) + (1 - lam) * criterion(logits, y_b)
-
-
-def reduce_tensor(tensor):
-    rt = tensor.clone()
-    torch.distributed.all_reduce(rt, op=torch.distributed.ReduceOp.SUM)
-    rt /= args.world_size
-
-    return rt
+    print(
+        f'\nValid Set, Loss: {test_loss.cpu().numpy()[0]:.4f}, Error: {test_error:.4f}, Accuracy: {acc:.2f}'
+    )
+    return test_loss, test_error, acc
 
 
 def main():
-    global args
+    # Training settings
+    parser = argparse.ArgumentParser(description='Histopathology MIL')
+    parser.add_argument('--batch-size', type=int, default=8, metavar='N',
+                        help='input batch size for training (default: 64)')
+    parser.add_argument('--test-batch-size', type=int, default=16, metavar='N',
+                        help='input batch size for testing (default: 1000)')
+    parser.add_argument('--epochs', type=int, default=14, metavar='N',
+                        help='number of epochs to train (default: 14)')
+    parser.add_argument('--lr', type=float, default=0.0001, metavar='LR',
+                        help='learning rate (default: 1.0)')
+    parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
+                        help='Learning rate step gamma (default: 0.7)')
+    parser.add_argument('--seed', type=int, default=42, metavar='S',
+                        help='random seed (default: 1)')
+    parser.add_argument('--log-interval', type=int, default=50, metavar='N',
+                        help='how many batches to wait before logging training status')
+    parser.add_argument('--save-model', action='store_true', default=True,
+                        help='For Saving the current Model')
+    parser.add_argument('--verbose', action='store_true', default=False,
+                        help='For displaying SMDataParallel-specific logs')
+    parser.add_argument('--data-path', type=str, default='workspace/tiles/data/processed/')
+    parser.add_argument('--start-pixels', type=int, default=48)
 
-    args = parse_args()
-    print(args)
+    # Model checkpoint location
+    parser.add_argument('--model-dir', type=str, default='workspace/models/')
+    parser.add_argument('--page', type=int, default=3)
+    parser.add_argument('--nfolds', type=int, default=5)
+    parser.add_argument('--fold', type=int, default=0)
 
-    init_dist(args)
+    parser.add_argument('--image-size', type=int, default=384)
 
-    (train_loader, train_sampler), dev_loader = get_loaders(args)
+    args = parser.parse_args()
+    # args.world_size = dist.get_world_size()
+    # args.rank = rank = dist.get_rank()
+    # args.local_rank = local_rank = dist.get_local_rank()
+    # args.batch_size //= args.world_size // 8
+    # args.batch_size = max(args.batch_size, 1)
+    model_name = f'{args.start_pixels}-{args.page}-{args.fold}'
+    data_path = f'{args.data_path}{args.start_pixels}/{args.page}/'
 
-    model = get_model(args)
-    # model = model.to(memory_format=torch.channels_last)
+    # if args.verbose:
+    #     print('Hello from rank', rank, 'of local_rank',
+    #             local_rank, 'in world size of', args.world_size)
 
-    model.cuda()
+    if not torch.cuda.is_available():
+        raise Exception("Must run SMDataParallel on CUDA-capable devices.")
 
-    criterion = get_criterion(args).cuda()
+    fix_seed(args.seed)
 
-    opt = get_opt(args, model, criterion)
+    dataframe = get_dftrain(data_path, args.nfolds, args.seed, args.fold)
 
-    scaler = torch.cuda.amp.GradScaler()
+    loader = get_dataloader(dataframe)
+    train_dataloader = loader.train
+    valid_dataloader = loader.valid
 
-    # For distributed training, wrap the model with apex.parallel.DistributedDataParallel.
-    # This must be done AFTER the call to amp.initialize.  If model = DDP(model) is called
-    # before model, ... = amp.initialize(model, ...), the call to amp.initialize may alter
-    # the types of model's parameters in a way that disrupts or destroys DDP's allreduce hooks.
+    device = torch.device("cuda")
+    model = Attention(input_D=args.image_size).to(device)
+    # torch.cuda.set_device(local_rank)
+    # model.cuda(local_rank)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), weight_decay=0.0005)
 
-    best_score = 0
-    metrics = {"score": Score(), "acc": Accuracy()}
+    print('Start Training')
+    history = {}
+    for epoch in range(1, args.epochs):
+        train_loss, train_error, tacc, valid_loss, valid_error, vacc = \
+            train(model, device, train_dataloader, valid_dataloader, optimizer, epoch)
+        history[epoch] = {
+            'train_loss': train_loss,
+            'train_error': train_error,
+            'tacc': tacc,
+            'valid_loss': valid_loss,
+            'valid_error': valid_error,
+            'vacc': vacc
+        }
 
-    history = {k: {k_: [] for k_ in ["train", "dev"]} for k in ["loss"]}
-    history.update({k: {v: [] for v in ["train", "dev"]} for k in metrics})
-
-    work_dir = Path(args.general.work_dir) / f"{args.train.fold}"
-    if args.dist.local_rank == 0 and not work_dir.exists():
-        work_dir.mkdir(parents=True)
-
-    # Optionally load model from a checkpoint
-    if args.train.load:
-
-        def _load():
-            path_to_load = Path(args.train.load).expanduser()
-            if path_to_load.is_file():
-                print(f"=> loading model '{path_to_load}'")
-                checkpoint = torch.load(
-                    path_to_load,
-                    map_location=lambda storage, loc: storage.cuda(args.dist.gpu),
-                )
-                model.load_state_dict(checkpoint["state_dict"])
-                print(f"=> loaded model '{path_to_load}'")
-            else:
-                print(f"=> no model found at '{path_to_load}'")
-
-        _load()
-
-    scheduler = None
-    if args.opt.scheduler == "cos":
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            opt, T_max=args.opt.T_max, eta_min=max(args.opt.lr * 1e-2, 1e-6)
-        )
-
-    # Optionally resume from a checkpoint
-    if args.train.resume:
-        # Use a local scope to avoid dangling references
-        def _resume():
-            nonlocal history, best_score
-            path_to_resume = Path(args.train.resume).expanduser()
-            if path_to_resume.is_file():
-                print(f"=> loading resume checkpoint '{path_to_resume}'")
-                checkpoint = torch.load(
-                    path_to_resume,
-                    map_location=lambda storage, loc: storage.cuda(args.dist.gpu),
-                )
-                args.train.start_epoch = checkpoint["epoch"] + 1
-                history = checkpoint["history"]
-                best_score = max(history["score"]["dev"])
-                model.load_state_dict(checkpoint["state_dict"])
-                opt.load_state_dict(checkpoint["opt_state_dict"])
-                scheduler.load_state_dict(checkpoint["sched_state_dict"])
-                scaler.load_state_dict(checkpoint["scaler"])
-                print(
-                    f"=> resume from checkpoint '{path_to_resume}' (epoch {checkpoint['epoch']})"
-                )
-            else:
-                print(f"=> no checkpoint found at '{path_to_resume}'")
-
-        _resume()
-
-    def saver(path):
-        torch.save(
-            {
-                "epoch": epoch,
-                "best_score": best_score,
-                "history": history,
-                "state_dict": model.state_dict(),
-                "opt_state_dict": opt.state_dict(),
-                "sched_state_dict": scheduler.state_dict()
-                if scheduler is not None
-                else None,
-                "scaler": scaler.state_dict(),
-                "args": args,
-            },
-            path,
-        )
-
-    for epoch in range(args.train.start_epoch, args.train.epochs + 1):
-
-        if args.dist.distributed:
-            train_sampler.set_epoch(epoch)
-
-        for metric in metrics.values():
-            metric.clean()
-
-        loss = epoch_step(
-            train_loader,
-            f"[ Training {epoch}/{args.train.epochs}.. ]",
-            model=model,
-            criterion=criterion,
-            metrics=metrics,
-            scaler=scaler,
-            opt=opt,
-            batch_accum=args.train.batch_accum,
-        )
-        history["loss"]["train"].append(loss)
-        for k, metric in metrics.items():
-            history[k]["train"].append(metric.evaluate())
-
-        if not args.train.ft:
-            with torch.no_grad():
-                for metric in metrics.values():
-                    metric.clean()
-                loss = epoch_step(
-                    dev_loader,
-                    f"[ Validating {epoch}/{args.train.epochs}.. ]",
-                    model=model,
-                    criterion=criterion,
-                    metrics=metrics,
-                    scaler=scaler,
-                    opt=None,
-                )
-                history["loss"]["dev"].append(loss)
-                for k, metric in metrics.items():
-                    history[k]["dev"].append(metric.evaluate())
-        else:
-            history["loss"]["dev"].append(loss)
-            for k, metric in metrics.items():
-                history[k]["dev"].append(metric.evaluate())
-
-        if scheduler is not None:
-            scheduler.step()
-
-        if args.dist.local_rank == 0:
-            if history["score"]["dev"][-1] > best_score:
-                best_score = history["score"]["dev"][-1]
-                saver(work_dir / "best.pth")
-
-            saver(work_dir / "last.pth")
-            plot_hist(history, work_dir)
-
-    return 0
+    print("Saving the model...")
+    torch.save(model.state_dict(), f'{args.model_dir}{model_name}.pt')
+    pickle.dump(history, open(f'{args.model_dir}{model_name}_history.pkl', 'wb'))
 
 
-if __name__ == "__main__":
-    exit(main())
+if __name__ == '__main__':
+    main()

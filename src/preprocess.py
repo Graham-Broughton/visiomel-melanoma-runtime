@@ -27,14 +27,13 @@ logger = logging.getLogger()
 warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dir_input_tif")
+parser.add_argument("--dir_input_tif", type=str, default='data/originals')
 parser.add_argument("--file_meta")
-parser.add_argument("--dir_output")
+parser.add_argument("--dir_output", type=str, default='data/processed')
 args = parser.parse_args()
 
 DIR_INPUT_TIF = args.dir_input_tif
 FILE_INPUT_CSV = args.file_meta  # 'data/train_metadata_eRORy1H.csv'
-# ./workspace/tiles/train/
 DIR_OUTPUT_TILES = f'./workspace/tiles/{args.dir_output}/'
 
 PAGE_IX_MULS = {0: 32, 1: 16, 2: 8, 3: 4, 4: 2}

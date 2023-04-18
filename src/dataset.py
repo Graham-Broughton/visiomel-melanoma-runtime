@@ -18,41 +18,19 @@ from types import SimpleNamespace
 warnings.filterwarnings("ignore")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument("--train_labels")
-# parser.add_argument("--model_id")
-# args = parser.parse_args()
 
-
-TRAIN_LABELS = '../data/train_labels.csv'
+TRAIN_LABELS = './data/train_labels.csv'
 DIR_WORKSPACE = './workspace/'
 DIR_MODEL = f'{DIR_WORKSPACE}/models/'  # models output directory
 os.makedirs(DIR_MODEL, exist_ok=True)
 
-NUM_CLASSES = 1
-nfolds = 5
+N_MAX = 48
+N = 48
+sz = 512
+bs = 1
 
 
-class config:
-    seed = 42
-    fold = 0
-    N_MAX = 128
-    N = 72
-    sz = 384
-    bs = 8
-
-
-def fix_seed(seed):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
-
-
-def get_dftrain(dir_train):
+def get_dftrain(dir_train, nfolds, seed, fold):
     df_labels = pd.read_csv(TRAIN_LABELS)
     df = pd.DataFrame()
     df_labels = df_labels.sort_values(by='filename').reset_index(drop=True)
@@ -64,7 +42,7 @@ def get_dftrain(dir_train):
     df = df.loc[files].reset_index().sort_values(
         by=['tissue_id']).reset_index(drop=True)
     splits = StratifiedKFold(
-        n_splits=nfolds, random_state=config.seed, shuffle=True)
+        n_splits=nfolds, random_state=seed, shuffle=True)
     splits = list(splits.split(df, df['relapse']))
     folds_splits = np.zeros(len(df)).astype(int)
     for i in range(nfolds):
@@ -91,7 +69,7 @@ def get_dftrain(dir_train):
     df_train = pd.merge(df, df1, on='tissue_id').sort_values(
         by=['tissue_id', 'tile_id']).reset_index(drop=True)
     df_train['is_valid'] = 0
-    df_train.loc[df_train.split == config.fold, 'is_valid'] = 1
+    df_train.loc[df_train.split == fold, 'is_valid'] = 1
     return df_train
 
 
@@ -104,7 +82,8 @@ std = torch.tensor(std)
 
 class TissueTiles(tuple):
     @classmethod
-    def create(cls, fns): return cls(tuple(PILImage.create(f) for f in fns))
+    def create(cls, fns):
+        return cls(tuple(PILImage.create(f) for f in fns))
 
 
 def TissueTilesBlock():
@@ -137,13 +116,13 @@ def create_batch(data):
         img = d[0]
         n_available = len(img)
         ixs = []
-        choice_range = min(n_available, config.N_MAX)
-        if n_available < config.N:
+        choice_range = min(n_available, N_MAX)
+        if n_available < N:
             ixs = list(np.random.choice(
-                range(choice_range), size=config.N, replace=True))
+                range(choice_range), size=N, replace=True))
         else:
             ixs = list(np.random.choice(
-                range(choice_range), size=config.N, replace=False))
+                range(choice_range), size=N, replace=False))
         ixs = sorted(list(ixs))
         # div and normalize
         img = tuple([((img[i]/255.) - mean[..., None, None]) /
@@ -168,7 +147,7 @@ def show_tile_batch(dls, max_rows=4, max_cols=5):
                 break
             x = x.cpu()
             x = mean[..., None, None] + x * std[..., None, None]
-            ax = axes[i, j] # type: ignore
+            ax = axes[i, j]  # type: ignore
             ax.imshow(x.permute(1, 2, 0).numpy())
             ax.set_title(ys.item())
             ax.axis('off')
@@ -210,7 +189,6 @@ def get_dataloader(df_train):
         valid = df[df.is_valid == 1].index.to_list()
         return train, valid
 
-    fix_seed(config.seed)
     affine_tfms, light_tfms = aug_transforms(flip_vert=False, max_rotate=25.0, max_zoom=1.1, max_warp=0.,
                                              p_affine=0.75, p_lighting=0., xtra_tfms=None)
 
@@ -221,13 +199,14 @@ def get_dataloader(df_train):
         return t[-1]
     dblock = DataBlock(
         blocks=(TissueTilesBlock, CategoryBlock),
-        get_items=TissueGetItems('path', 'tissue_id', 'relapse', config.N_MAX),
+        get_items=TissueGetItems('path', 'tissue_id', 'relapse', N_MAX),
         get_x=get_x,
         get_y=get_y,
         splitter=splitter,
-        item_tfms=Resize(config.sz),
+        item_tfms=Resize(sz),
+
         batch_tfms=[SequenceTfms([affine_tfms])]
     )
 
-    dls = dblock.dataloaders(df_train, bs=config.bs, create_batch=create_batch)
+    dls = dblock.dataloaders(df_train, bs=bs, create_batch=create_batch, num_workers=4)
     return dls
