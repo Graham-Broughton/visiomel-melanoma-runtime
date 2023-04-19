@@ -202,9 +202,9 @@ slides.TILE_DATA_DIR = os.path.join(slides.BASE_DIR, f"tile_data/{BASE_SZ}")
 slides.TOP_TILES_DIR = os.path.join(slides.BASE_DIR, f"top_tiles/{BASE_SZ}")
 
 # maximum number of tiles to extract per page
-MAX_TILES_PER_PAGE = {0: 12, 1: 24, 2: 48, 3: 96, 4: 128}
+MAX_TILES_PER_PAGE = {0: 48, 1: 64, 2: 80, 3: 96, 4: 128}
 # patch size to extract for each page
-PATCH_SIZES_ACT = {0: 768, 1: 768, 2: 384, 3: 192, 4: 96}
+PATCH_SIZES_ACT = {0: 512, 1: 384, 2: 256, 3: 192, 4: 96}
 
 logger.info(f'********* GENERATING TILE META {BASE_SZ} **********')
 tiles.multiprocess_filtered_images_to_tiles(
@@ -231,9 +231,9 @@ slides.TILE_DATA_DIR = os.path.join(slides.BASE_DIR, f"tile_data/{BASE_SZ}")
 slides.TOP_TILES_DIR = os.path.join(slides.BASE_DIR, f"top_tiles/{BASE_SZ}")
 
 # maximum number of tiles to extract per page
-MAX_TILES_PER_PAGE = {0: 12, 1: 24, 2: 48, 3: 64, 4: 128}
+MAX_TILES_PER_PAGE = {0: 48, 1: 64, 2: 80, 3: 96, 4: 128}
 # patch size to extract for each page
-PATCH_SIZES_ACT = {0:1024, 1:1024, 2: 512, 3: 256, 4: 128}
+PATCH_SIZES_ACT = {0:512, 1:384, 2: 256, 3: 128, 4: 96}
 
 logger.info(f'********* GENERATING TILE META {BASE_SZ} **********')
 tiles.multiprocess_filtered_images_to_tiles(

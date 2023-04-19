@@ -20,18 +20,20 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 TRAIN_LABELS = './data/train_labels.csv'
+TRAIN = './data/train.csv'
 DIR_WORKSPACE = './workspace/'
 DIR_MODEL = f'{DIR_WORKSPACE}/models/'  # models output directory
 os.makedirs(DIR_MODEL, exist_ok=True)
 
-N_MAX = 48
-N = 48
-sz = 512
+N_MAX = 80
+N = 24
+sz = 256
 bs = 1
 
 
 def get_dftrain(dir_train, nfolds, seed, fold):
     df_labels = pd.read_csv(TRAIN_LABELS)
+    train = pd.read_csv(TRAIN)
     df = pd.DataFrame()
     df_labels = df_labels.sort_values(by='filename').reset_index(drop=True)
     df_labels['tissue_id'] = df_labels.filename.str.split('.').str[0].values
@@ -70,6 +72,8 @@ def get_dftrain(dir_train, nfolds, seed, fold):
         by=['tissue_id', 'tile_id']).reset_index(drop=True)
     df_train['is_valid'] = 0
     df_train.loc[df_train.split == fold, 'is_valid'] = 1
+
+    df_train = df_train.merge(train, on='filename')
     return df_train
 
 
@@ -83,34 +87,46 @@ std = torch.tensor(std)
 class TissueTiles(tuple):
     @classmethod
     def create(cls, fns):
+        print("debug 8")
         return cls(tuple(PILImage.create(f) for f in fns))
 
 
 def TissueTilesBlock():
+    print("debug 9")
     return TransformBlock(type_tfms=TissueTiles.create, batch_tfms=None)
 
 
 class TissueGetItems():
-    def __init__(self, path_col, tissue_id_col, label_col, max_nth_tile, shuffle=False):
+    def __init__(self, path_col, tissue_id_col, label_col, max_nth_tile, sex_col, age_col, mel_history, shuffle=False):
         self.path = path_col
         self.tissue_id = tissue_id_col
         self.label = label_col  # tissue label
         self.shuffle = shuffle
         self.max_nth_tile = max_nth_tile
+        self.sex_col = sex_col
+        self.age_col = age_col
+        self.mel_history = mel_history
 
     def __call__(self, df):
         data = []
+        metas = []
+        labels = []
         for tissue_id in progress_bar(df[self.tissue_id].unique()):
             tiles = df[(df[self.tissue_id] == tissue_id) &
                        (df['tile_id'] < self.max_nth_tile)]
             fns = tiles[self.path].tolist()
 
             lbl = tiles[self.label].values[0]
-            data.append([*fns, lbl])
-        return data
+
+            meta = tiles[[self.sex_col, self.age_col, self.mel_history]].drop_duplicates().values.tolist()
+            metas.append(meta)
+            data.append([*fns])
+            labels.append(lbl)
+        return data, metas, labels
 
 
 def create_batch(data):
+    print("debug 7")
     xs, ys = [], []
     for d in data:
         img = d[0]
@@ -158,6 +174,7 @@ class SequenceTfms(Transform):
         self.tfms = tfms
 
     def encodes(self, x: TensorImage):
+        print("debug 6")
 
         bs, seq_len, ch, rs, cs = x.shape
         x = x.view(bs, seq_len*ch, rs, cs)
@@ -171,7 +188,8 @@ class BatchTfms(Transform):
     def __init__(self, tfms):
         self.tfms = tfms
 
-    def encodes(self, x: TensorImage):
+    def encodes(self, x: TensorImage, ):
+        print("debug 5")
         bs, seq_len, ch, rs, cs = x.shape
         x = x.view(bs*seq_len, ch, rs, cs)
         x = compose_tfms(x, self.tfms)
@@ -182,31 +200,36 @@ class BatchTfms(Transform):
 
 def get_dataloader(df_train):
     def splitter(lst):
-        df = pd.DataFrame([l[0] for l in lst]).rename(columns={0: 'path'})
+        df = pd.DataFrame([l[0] for l in lst[0]]).rename(columns={0: 'path'})
+        print("debug 1")
         df = pd.merge(df, df_train).drop_duplicates(
             subset=['tissue_id']).sort_values(by=['tissue_id']).reset_index(drop=True)
         train = df[df.is_valid != 1].index.to_list()
         valid = df[df.is_valid == 1].index.to_list()
+        print("debug 2")
         return train, valid
 
     affine_tfms, light_tfms = aug_transforms(flip_vert=False, max_rotate=25.0, max_zoom=1.1, max_warp=0.,
                                              p_affine=0.75, p_lighting=0., xtra_tfms=None)
 
     def get_x(t):
-        return t[:-1]
+        print("debug 3")
+        return t[:2]
 
     def get_y(t):
-        return t[-1]
+        print("debug 4")
+        return t[2]
     dblock = DataBlock(
-        blocks=(TissueTilesBlock, CategoryBlock),
-        get_items=TissueGetItems('path', 'tissue_id', 'relapse', N_MAX),
-        get_x=get_x,
-        get_y=get_y,
+        blocks=(TissueTilesBlock, RegressionBlock, CategoryBlock),
+        get_items=TissueGetItems('path', 'tissue_id', 'relapse', N_MAX, 'sex', 'age', 'melanoma_history'),
+        # get_x=get_x,
+        # get_y=get_y,
         splitter=splitter,
         item_tfms=Resize(sz),
-
-        batch_tfms=[SequenceTfms([affine_tfms])]
+        batch_tfms=[SequenceTfms([affine_tfms])],
+        getters=[ItemGetter(0), ItemGetter(1), ItemGetter(2)],
+        n_inp=2
     )
-
+    print("debug 10")
     dls = dblock.dataloaders(df_train, bs=bs, create_batch=create_batch, num_workers=4)
     return dls

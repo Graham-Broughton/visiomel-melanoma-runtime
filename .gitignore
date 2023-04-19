@@ -70,3 +70,4 @@ data/originals/*
 **.tfrec
 **.png
 workspace/tiles/data/**
+**.pt

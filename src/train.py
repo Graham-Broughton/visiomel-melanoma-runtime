@@ -20,7 +20,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
 from dataset import get_dftrain, get_dataloader
-from model import Attention
+from model import Attention, Meta
 
 
 def fix_seed(seed):
@@ -74,7 +74,7 @@ def train(model, device, train_loader, valid_loader, optimizer, epoch):
     print(
         f'Train Set, Epoch: {epoch}, Loss: {train_loss.cpu().numpy()[0]:.4f}, Error: {train_error:.4f}, Accuracy: {tacc:.2f}'
     )
-    return train_loss, train_error, tacc, valid_loss, valid_error, vacc
+    return train_loss.cpu().numpy()[0], train_error.numpy(), tacc, valid_loss.cpu().numpy()[0], valid_error.numpy(), vacc
 
 
 def test(model, device, test_loader):
