@@ -1,16 +1,18 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+
+
 class Meta(nn.Module):
-    def __init__(self, input_shape, l_nodes=None, dropout_pct=0.2):
+    def __init__(self, input_shape=3, l_nodes=None, dropout_pct=0.2):
         if l_nodes is None:
             l_nodes = [256, 256]
         super(Meta, self).__init__()
         self.l1 = nn.Linear(input_shape, l_nodes[0])
         self.l2 = nn.Linear(l_nodes[0], l_nodes[1])
 
-        self.bn1 = nn.BatchNorm1d(l_nodes[0])
-        self.bn2 = nn.BatchNorm1d(l_nodes[1])
+        self.bn1 = nn.LayerNorm(l_nodes[0])
+        self.bn2 = nn.LayerNorm(l_nodes[1])
 
         self.relu = nn.ReLU()
         self.dp = nn.Dropout(p=dropout_pct)
@@ -23,6 +25,7 @@ class Meta(nn.Module):
         x = self.dp(self.relu(self.bn2(self.l2(x))))
         return x
 
+
 class Attention(nn.Module):
     def __init__(self, input_D: int = 128, out_kernels_1: int = 36, out_kernels_2: int = 48, L: int = 512, K: int = 1, meta_model = Meta):
         super(Attention, self).__init__()
@@ -32,7 +35,7 @@ class Attention(nn.Module):
         self.kernel_2 = out_kernels_2
         self.D = input_D  # 128 node attention layer
         self.K = K
-        self.meta_model = meta_model(3)
+        self.meta_model = meta_model()
 
         self.feature_extractor_part1 = nn.Sequential(
             nn.Conv2d(3, self.kernel_1, kernel_size=4),
@@ -59,12 +62,15 @@ class Attention(nn.Module):
         )
 
         self.classifier = nn.Sequential(
-            nn.Linear(self.L * self.K, 1),
+            nn.Linear(self.L * self.K + 256, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1),
             nn.Sigmoid()
         )
 
     def forward(self, x, x_meta):
         x = x.squeeze(0)
+        x_meta = x_meta.squeeze(0)
         met = self.meta_model(x_meta)
 
         H = self.feature_extractor_part1(x)
@@ -76,17 +82,16 @@ class Attention(nn.Module):
         A = F.softmax(A, dim=1)  # softmax over N
 
         M = torch.mm(A, H)
-        print(M.shape, A.shape, H.shape, n.shape)
-        out = torch.cat([M, met])
+        out = torch.cat([M, met], dim=-1)
 
-        Y_prob = self.classifier(M)
+        Y_prob = self.classifier(out)
         Y_hat = torch.ge(Y_prob, 0.5).float()
 
         return Y_prob, Y_hat, A.byte()
 
-    def calculate_all(self, X, Y):
+    def calculate_all(self, X, x_meta, Y):
         Y = Y.float()
-        Y_prob, Y_hat, A = self.forward(X)
+        Y_prob, Y_hat, A = self.forward(X, x_meta)
         #Y_prob = torch.clamp(Y_prob, min=1e-5, max=1. - 1e-5)
         error = 1. - Y_hat.eq(Y).cpu().float().mean().data
         neg_log_likelihood = -1. * (Y * torch.log(Y_prob) + (1. - Y) * torch.log(1. - Y_prob))

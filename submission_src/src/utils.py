@@ -6,6 +6,19 @@ import pyvips
 from sklearn.model_selection import StratifiedKFold
 
 
+def get_N_MAX(start_pixels, page):
+    if start_pixels == 64:
+
+        MAX_TILES_PER_PAGE = {0: 48, 1: 64, 2: 80, 3: 96, 4: 128}
+        PATCH_SIZES_ACT = {0:512, 1:384, 2: 256, 3: 128, 4: 96}
+        TILES_PER_PAGE = {0: 32, 1: 64, 2: 80, 3: 96, 4: 128}
+        return MAX_TILES_PER_PAGE[page], PATCH_SIZES_ACT[page], TILES_PER_PAGE[page]
+
+    MAX_TILES_PER_PAGE = {0: 48, 1: 64, 2: 80, 3: 96, 4: 128}
+    PATCH_SIZES_ACT = {0: 512, 1: 384, 2: 256, 3: 192, 4: 96}
+    TILES_PER_PAGE = {0: 32, 1: 64, 2: 80, 3: 96, 4: 128}
+    return MAX_TILES_PER_PAGE[page], PATCH_SIZES_ACT[page], TILES_PER_PAGE[page]
+
 def to_gpu(inp, gpu=0):
     return inp.cuda(gpu, non_blocking=True)
 

@@ -16,11 +16,11 @@ from torch.autograd import Variable
 from torch.optim.lr_scheduler import StepLR
 import torch.utils.data as data_utils
 import PIL
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
-from dataset import get_dftrain, get_dataloader
-from model import Attention, Meta
+import dataloading
+from model import Attention
+from utils import get_N_MAX
 
 
 def fix_seed(seed):
@@ -40,19 +40,19 @@ def train(model, device, train_loader, valid_loader, optimizer, epoch):
     predictions = []
     labels = []
     print('epoch = ', epoch)
-    for batch_idx, (data, label) in enumerate(train_loader):
+    for batch_idx, (data, meta, label) in enumerate(train_loader):
         if batch_idx % 25 == 0:
             print('batch_idx = ', batch_idx)
         bag_label = label
         data = torch.squeeze(data)
-        data, bag_label = data.cuda(), bag_label.cuda()
-        data, bag_label = Variable(data), Variable(bag_label)
-        data, bag_label = data.to(device), bag_label.to(device)
+        data, bag_label, meta = data.cuda(), bag_label.cuda(), meta.cuda()
+        data, bag_label, meta = Variable(data), Variable(bag_label), Variable(meta)
+        data, bag_label, meta = data.to(device), bag_label.to(device), meta.to(device)
 
         # Reset gradients
         optimizer.zero_grad()
         # Calculate loss
-        loss, error, Y_hat, attention_weights = model.calculate_all(data, bag_label)
+        loss, error, Y_hat, attention_weights = model.calculate_all(data, meta, bag_label)
         train_loss += loss.data[0]
         train_error += error
 
@@ -84,14 +84,14 @@ def test(model, device, test_loader):
     predictions = []
     labels = []
     with torch.no_grad():
-        for batch_idx, (data, label) in enumerate(test_loader):
+        for batch_idx, (data, meta, label) in enumerate(test_loader):
             bag_label = label
             data = torch.squeeze(data)
 
-            data, bag_label = Variable(data), Variable(bag_label)
-            data, bag_label = data.to(device), bag_label.to(device)
+            data, bag_label, meta = Variable(data), Variable(bag_label), Variable(meta)
+            data, bag_label, meta = data.to(device), bag_label.to(device), meta.to(device)
 
-            loss, error, Y_hat, attention_weights = model.calculate_all(data, bag_label)
+            loss, error, Y_hat, attention_weights = model.calculate_all(data, meta, bag_label)
             test_loss += loss.data[0]
             test_error += error
 
@@ -138,8 +138,6 @@ def main():
     parser.add_argument('--nfolds', type=int, default=5)
     parser.add_argument('--fold', type=int, default=0)
 
-    parser.add_argument('--image-size', type=int, default=384)
-
     args = parser.parse_args()
     # args.world_size = dist.get_world_size()
     # args.rank = rank = dist.get_rank()
@@ -156,16 +154,18 @@ def main():
     if not torch.cuda.is_available():
         raise Exception("Must run SMDataParallel on CUDA-capable devices.")
 
+    args.N_MAX, args.sz, args.N = get_N_MAX(args.start_pixels, args.page)
+
     fix_seed(args.seed)
 
-    dataframe = get_dftrain(data_path, args.nfolds, args.seed, args.fold)
+    train_ds = dataloading.Dataset(data_path, args.nfolds, args.seed, args.fold, args.N_MAX, 64, args.sz, isval=False)
+    val_ds = dataloading.Dataset(data_path, args.nfolds, args.seed, args.fold, args.N_MAX, 64, args.sz)
 
-    loader = get_dataloader(dataframe)
-    train_dataloader = loader.train
-    valid_dataloader = loader.valid
+    train_dl = data_utils.DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=4)
+    val_dl = data_utils.DataLoader(val_ds, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
     device = torch.device("cuda")
-    model = Attention(input_D=args.image_size).to(device)
+    model = Attention(input_D=args.sz).to(device)
     # torch.cuda.set_device(local_rank)
     # model.cuda(local_rank)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), weight_decay=0.0005)
@@ -174,7 +174,7 @@ def main():
     history = {}
     for epoch in range(1, args.epochs):
         train_loss, train_error, tacc, valid_loss, valid_error, vacc = \
-            train(model, device, train_dataloader, valid_dataloader, optimizer, epoch)
+            train(model, device, train_dl, val_dl, optimizer, epoch)
         history[epoch] = {
             'train_loss': train_loss,
             'train_error': train_error,
