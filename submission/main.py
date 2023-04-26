@@ -72,9 +72,9 @@ def main():
     submission_format = pd.read_csv(DATA_ROOT / "submission_format.csv", index_col=0)
 
     logger.info("Starting Preprocessing")
-    out = subprocess.run(
+    subprocess.run(
         ['python', 'src/preprocess.py', '--dir_input_tif', f'{DATA_ROOT}', '--file_meta', f'{DATA_ROOT}/test_metadata.csv', '--dir_output', 'processed'],
-        capture_output=True, text=True)
+        check=True)
 
     logger.info("Finished Preprocessing")
     device = torch.device("cuda")
