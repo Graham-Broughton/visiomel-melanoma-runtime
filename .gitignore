@@ -59,8 +59,6 @@ src.egg-info/
 pip-wheel-metadata/
 *.egg-info/
 
-# Submissions
-submission/
 
 # Data
 data/baseline/*
@@ -78,6 +76,3 @@ wandb/**
 !/data/originals/jdso97ug.tif
 !/data/originals/09lh5igz.tif
 !/data/originals/0by07vj3.tif
-ziqU1jKf
-zisI1h5Q
-submission.zip
