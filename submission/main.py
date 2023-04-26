@@ -75,7 +75,6 @@ def main():
     out = subprocess.run(
         ['python', 'src/preprocess.py', '--dir_input_tif', f'{DATA_ROOT}', '--file_meta', f'{DATA_ROOT}/test_metadata.csv', '--dir_output', 'processed'],
         capture_output=True, text=True)
-    logger.info(f'subprocess info: {out}')
 
     logger.info("Finished Preprocessing")
     device = torch.device("cuda")
