@@ -71,3 +71,13 @@ data/originals/*
 **.png
 workspace/tiles/data/**
 **.pt
+wandb/**
+!/data/originals/qmle7cjk.tif
+!/data/originals/l6s043vm.tif
+!/data/originals/0pp2l7u8.tif
+!/data/originals/jdso97ug.tif
+!/data/originals/09lh5igz.tif
+!/data/originals/0by07vj3.tif
+ziqU1jKf
+zisI1h5Q
+submission.zip
