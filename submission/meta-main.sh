@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-{
-yell() { echo "$0: $*" >&2; }
-die() {
+
+function yell() { echo "$0: $*" >&2; }
+function die() {
 	yell "$1";
 	if ! [ -z ${2+x} ];
 	then
@@ -10,10 +10,10 @@ die() {
 		exit 111;
 	fi
 }
-source shell_scripts/setup_environment.sh
+#source shell_scripts/setup_environment.sh
 
 operation="$1"
-case "$operation" in 
+case "$operation" in
 	create_patches)
 		source_sh="shell_scripts/create_patches.sh"
 		;;
@@ -33,7 +33,7 @@ if [ ! -z ${source_sh+x} ]; then
 	source "$source_sh"
 fi
 
-case "$operation" in 
+case "$operation" in
 	create_patches)
 	for patch_size in "${patch_size_list[@]}"; do
 		[ -z "$data_files_dir" ] || [ -z "$patch_size" ] && { die "empty options"; }
@@ -44,7 +44,7 @@ case "$operation" in
 		python create_patches_fp.py \
 		--source "$data_files_dir/WSI" \
 		--save_dir "$data_files_dir/patches/patches--patch_size_$patch_size" \
-		--patch_size "$patch_size" --step_size "$patch_size" --preset "$preset" --seg --patch --stitch & 
+		--patch_size "$patch_size" --step_size "$patch_size" --preset "$preset" --seg --patch --stitch &
 	done
 	;;
 
@@ -114,7 +114,7 @@ case "$operation" in
 					--task_id "$i"
 		fi
 
-		
+
 		done
 	done
 	;;
@@ -157,7 +157,7 @@ case "$operation" in
 			--data_files_dir "$data_files_dir" \
 			--dataset_name "$dataset_name" \
 			--patches_dir_name "$patches_dir_name" \
-			--features_dir_name "$features_dir_name" 
+			--features_dir_name "$features_dir_name"
 
 		EOF
 	else
@@ -167,7 +167,7 @@ case "$operation" in
 			--data_files_dir "$data_files_dir" \
 			--dataset_name "$dataset_name" \
 			--patches_dir_name "$patches_dir_name" \
-			--features_dir_name "$features_dir_name" 
+			--features_dir_name "$features_dir_name"
 	fi
 	done
 	;;
@@ -194,7 +194,7 @@ case "$operation" in
 		--test_same_as_val "${test_same_as_val:-false}"
 	;;
 
-	
+
 
 	train_eval)
 		exp_code="$2"
@@ -221,12 +221,12 @@ case "$operation" in
 				#SBATCH --gres=gpu:1
 				set -e
 				#run the application:
-				python -u train_eval.py train --config "$config_fp" --default "$default_fp" --fold "$fold" 
-				python -u train_eval.py evaluate --config "$config_fp" --default "$default_fp" --fold "$fold" 
+				python -u train_eval.py train --config "$config_fp" --default "$default_fp" --fold "$fold"
+				python -u train_eval.py evaluate --config "$config_fp" --default "$default_fp" --fold "$fold"
 				EOF
 			else
-				python -u train_eval.py train --config "$config_fp" --default "$default_fp" --fold "$fold" 
-				python -u train_eval.py evaluate --config "$config_fp" --default "$default_fp" --fold "$fold" 
+				python -u train_eval.py train --config "$config_fp" --default "$default_fp" --fold "$fold"
+				python -u train_eval.py evaluate --config "$config_fp" --default "$default_fp" --fold "$fold"
 			fi
 		done
 	;;
@@ -249,4 +249,3 @@ case "$operation" in
 esac
 
 exit 0;
-}

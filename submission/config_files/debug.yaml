@@ -1,7 +1,7 @@
 exp_code: "debug"
 
 # data configurations
-data_files_dir: "dataset_files/HMU_1st"
+data_files_dir: "dataset_files/visiomel"
 # features_dir: "features/features--vit_large_patch16_384--2048_384"
 features_dir: "slide_graph/feature_nn_4-coord_nn_4"
 label_dict: { AA : 0, AO : 1, DA : 2, GBM : 3, O : 4}
@@ -23,7 +23,7 @@ log_data: true
 weighted_sample: true
 subtyping: true
 early_stopping: true
-train_root_dir: "dataset_files/HMU_1st/train"
+train_root_dir: "dataset_files/visiomel/train"
 
 # model configurations
 model_type: graph_vit_aggr
@@ -31,4 +31,4 @@ model_type: graph_vit_aggr
 associated_train_dir: null
 eval_dir: null
 eval_split: test
-model_ckpt_fp: "dataset_files/HMU_1st/train/debug/fold-1/2021-09-20-02:17:41/ckpt/best_model.pt"
+model_ckpt_fp: "dataset_files/visiomel/train/debug/fold-1/2021-09-20-02:17:41/ckpt/best_model.pt"

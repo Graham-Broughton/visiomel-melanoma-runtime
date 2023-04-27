@@ -175,6 +175,6 @@ if __name__ == "__main__":
     from wsi_core.WholeSlideImage import WholeSlideImage
     import pyvips
 
-    wsi = pyvips.Image.new_from_file("dataset_files/HMU_1st-glioma/WSI/17#11_7.svs")
+    wsi = pyvips.Image.new_from_file("dataset_files/visiomel/ .tif")
     bag = Whole_Slide_Bag_FP("dataset_files/HMU_1st-glioma/patches/patches/17#11_7.h5", wsi)
     print(bag[0])
