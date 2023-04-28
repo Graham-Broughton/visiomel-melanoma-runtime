@@ -67,6 +67,7 @@ def savePatchIter_bag_hdf5(patch):
 def save_hdf5(output_path, asset_dict, attr_dict=None, mode='a'):
     file = h5py.File(output_path, mode)
     for key, val in asset_dict.items():
+        val = np.asarray(val).astype(np.float32)
         data_shape = val.shape
         if key not in file:
             data_type = val.dtype
@@ -77,7 +78,15 @@ def save_hdf5(output_path, asset_dict, attr_dict=None, mode='a'):
             dset[:] = val
             if attr_dict is not None and key in attr_dict.keys():
                 for attr_key, attr_val in attr_dict[key].items():
-                    dset.attrs[attr_key] = attr_val
+                    if isinstance(attr_val, int):
+                        v = np.array(attr_val, dtype=np.uint32)
+                    elif isinstance(attr_val, float):
+                        v = np.array(attr_val, dtype=np.float32)
+                    elif 'numpy' in str(type(attr_val)):
+                        v = attr_val
+                    else:
+                        v = str(attr_val)
+                    dset.attrs[attr_key] = v
         elif val.shape[0] > 0:
             dset = file[key]
             dset.resize(len(dset) + data_shape[0], axis=0)
@@ -214,7 +223,7 @@ def DrawMap(canvas, patch_dset, coords, patch_size, indices=None, verbose=1, dra
 def DrawMapFromCoords(
     canvas, wsi_object, coords, patch_size, vis_level, indices=None, verbose=1, draw_grid=True
 ):
-    downsamples = wsi_object.wsi.level_downsamples[vis_level]
+    downsamples = wsi_object.level_downsamples[vis_level]
     if indices is None:
         indices = np.arange(len(coords))
     total = len(indices)
@@ -231,8 +240,8 @@ def DrawMapFromCoords(
 
         patch_id = indices[idx]
         coord = coords[patch_id]
-        patch = np.array(wsi_object.wsi.read_region(
-            tuple(coord), vis_level, patch_size).convert("RGB"))
+        patch = wsi_object.wsi.read_region(tuple(coord), vis_level, patch_size)
+        patch = np.ndarray(buffer=patch, dtype=np.uint8, shape=list(patch_size) + [3])
         coord = np.ceil(coord / downsamples).astype(np.int32)
         canvas_crop_shape = canvas[coord[1]:coord[1] + patch_size[1],
                                    coord[0]:coord[0] + patch_size[0], :3].shape[:2]
@@ -281,17 +290,16 @@ def StitchPatches(hdf5_file_path, downscale=16, draw_grid=False, bg_color=(0, 0,
 
 
 def StitchCoords(hdf5_file_path, wsi_object, downscale=16, draw_grid=False, bg_color=(0, 0, 0), alpha=-1):
-    wsi = wsi_object.getOpenSlide()
-    vis_level = wsi.get_best_level_for_downsample(downscale)
+    vis_level = wsi_object.get_best_level_for_downsample(downscale)
     print("opening h5 file", hdf5_file_path)
     file = h5py.File(hdf5_file_path, 'r')
     dset = file['coords']
     coords = dset[:]
-    w, h = wsi.level_dimensions[0]
+    w, h = wsi_object.level_dimensions[0]
     print(f'start stitching {dset.attrs["name"]}')
     print(f'original size: {w} x {h}')
 
-    w, h = wsi.level_dimensions[vis_level]
+    w, h = wsi_object.level_dimensions[vis_level]
 
     print(f'downscaled size for stiching: {w} x {h}')
     print(f'number of patches: {len(coords)}')
@@ -300,7 +308,7 @@ def StitchCoords(hdf5_file_path, wsi_object, downscale=16, draw_grid=False, bg_c
     patch_level = dset.attrs['patch_level']
     print(f'patch size: {patch_size}x{patch_size} patch level: {patch_level}')
     patch_size = tuple((np.array((patch_size, patch_size))
-                       * wsi.level_downsamples[patch_level]).astype(np.int32))
+                       * wsi_object.level_downsamples[patch_level]).astype(np.int32))
     print(f'ref patch size: {patch_size}x{patch_size}')
 
     if w * h > Image.MAX_IMAGE_PIXELS:

@@ -17,25 +17,45 @@ from utils.utils import iprint
 Image.MAX_IMAGE_PIXELS = 933120000
 
 
-class WholeSlideImage(object):
+class wsi:
     def __init__(self, path):
+        self.path = path
+        self.img = self.getOpenSlide(path)
+        self.levels = self.img.get_n_pages()
+        w, h = self.img.width, self.img.height
+        self.level_dimensions = [(w//(2**i), h//(2**i)) for i in range(self.levels)]
+        self.level_downsamples = [2**i for i in range(self.levels)]
+
+    @staticmethod
+    def getOpenSlide(path, page=0):
+        return pyvips.Image.new_from_file(path, access='sequential', page=page)
+
+    def read_region(self, coords: tuple, seg_level: int, reg_dims: tuple):
+        img = self.getOpenSlide(self.path, page=seg_level)
+        img = pyvips.Region.new(img)
+        return img.fetch(x=coords[0], y=coords[1], w=reg_dims[0], h=reg_dims[1])
+
+
+class WholeSlideImage(object):
+    def __init__(self, path, wsi=wsi):
 
         """
         Args:
             path (str): fullpath to WSI file
         """
-
+        self.path = path
         self.name = ".".join(path.split("/")[-1].split('.')[:-1])
-        self.wsi = pyvips.Image.new_from_file(path)
+        self.wsi = wsi(self.path)
+        self.level_dimensions = self.wsi.level_dimensions
+        self.level_dim = self.level_dimensions
         self.level_downsamples = self._assertLevelDownsamples()
-        self.level_dim = self.wsi.level_dimensions
 
         self.contours_tissue = None
         self.contours_tumor = None
         self.hdf5_file = None
 
-    def getOpenSlide(self):
-        return self.wsi
+    def get_best_level_for_downsample(self, downsample: int):
+        return round(math.log2(downsample))
 
     def initXML(self, xml_path):
         def _createContour(coord_list):
@@ -140,7 +160,10 @@ class WholeSlideImage(object):
 
             return foreground_contours, hole_contours
 
-        img = np.array(self.wsi.read_region((0,0), seg_level, self.level_dim[seg_level]))
+        img = self.wsi.read_region((0,0), seg_level, self.level_dim[seg_level])
+        img = np.ndarray(
+            buffer=img, dtype=np.uint8, shape=list(self.level_dim[seg_level]) + [3]
+        )
         img_hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)  # Convert to HSV space
         img_med = cv2.medianBlur(img_hsv[:,:,1], mthresh)  # Apply median blurring
 
@@ -198,7 +221,10 @@ class WholeSlideImage(object):
             top_left = (0,0)
             region_size = self.level_dim[vis_level]
 
-        img = np.array(self.wsi.read_region(top_left, vis_level, region_size).convert("RGB"))
+        img = self.wsi.read_region(top_left, vis_level, region_size)
+        img = np.ndarray(
+            buffer=img, dtype=np.uint8, shape=list(region_size) + [3]
+        )  # .convert("RGB")
 
         if not view_slide_only:
             offset = tuple(-(np.array(top_left) * scale).astype(int))
@@ -387,9 +413,9 @@ class WholeSlideImage(object):
 
     def _assertLevelDownsamples(self):
         level_downsamples = []
-        dim_0 = self.wsi.level_dimensions[0]
+        dim_0 = self.level_dimensions[0]
 
-        for downsample, dim in zip(self.wsi.level_downsamples, self.wsi.level_dimensions):
+        for downsample, dim in zip(self.wsi.level_downsamples, self.level_dimensions):
             estimated_downsample = (dim_0[0] / float(dim[0]), dim_0[1] / float(dim[1]))
             level_downsamples.append(estimated_downsample) if estimated_downsample != (downsample, downsample) \
                 else level_downsamples.append((downsample, downsample))
@@ -490,6 +516,10 @@ class WholeSlideImage(object):
         results = pool.starmap(WholeSlideImage.process_coord_candidate, iterable)
         pool.close()
         results = np.array([result for result in results if result is not None])
+        # results = np.array(
+        #     [WholeSlideImage.process_coord_candidate(*it) for it in iterable
+        #         if WholeSlideImage.process_coord_candidate(*it) is not None]
+        # )
 
         print(f'Extracted {len(results)} coordinates')
 
