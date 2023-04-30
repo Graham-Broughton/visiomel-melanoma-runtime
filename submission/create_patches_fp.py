@@ -11,6 +11,7 @@ import argparse
 import pandas as pd
 import joblib
 import tempfile
+from pathlib import Path
 
 
 def stitching(file_path, wsi_object, downscale=64):
@@ -162,8 +163,7 @@ def seg_and_patch(
                 current_vis_params['vis_level'] = 0
 
             else:
-                wsi = WSI_object.getOpenSlide()
-                best_level = wsi.get_best_level_for_downsample(64)
+                best_level = WSI_object.get_best_level_for_downsample(64)
                 current_vis_params['vis_level'] = best_level
 
         if current_seg_params['seg_level'] < 0:
@@ -171,8 +171,7 @@ def seg_and_patch(
                 current_seg_params['seg_level'] = 0
 
             else:
-                wsi = WSI_object.getOpenSlide()
-                best_level = wsi.get_best_level_for_downsample(64)
+                best_level = WSI_object.get_best_level_for_downsample(64)
                 current_seg_params['seg_level'] = best_level
 
         keep_ids = str(current_seg_params['keep_ids'])
@@ -277,12 +276,13 @@ def seg_and_patch(
 
 
 parser = argparse.ArgumentParser(description='seg and patch')
-parser.add_argument('--source', type=str, help='path to folder containing raw wsi image files')
-parser.add_argument('--step_size', type=int, default=256, help='step_size')
-parser.add_argument('--patch_size', type=int, default=256, help='patch_size')
-parser.add_argument('--patch', default=False, action='store_true')
-parser.add_argument('--seg', default=False, action='store_true')
-parser.add_argument('--stitch', default=False, action='store_true')
+parser.add_argument('--data_dir', type=str, default='dataset_files/visiomel/', help='path to parent folder containing raw wsi image files')
+parser.add_argument('--source', type=str, default='dataset_files/visiomel/WSI/')
+parser.add_argument('--step_size', type=int, default=1024, help='step_size')
+parser.add_argument('--patch_size', type=int, default=1024, help='patch_size')
+parser.add_argument('--patch', default=True, action='store_true')
+parser.add_argument('--seg', default=True, action='store_true')
+parser.add_argument('--stitch', default=True, action='store_true')
 parser.add_argument('--no_auto_skip', default=False, action='store_true')
 parser.add_argument('--save_dir', type=str, help='directory to save processed data')
 parser.add_argument(
@@ -293,10 +293,12 @@ parser.add_argument('--process_list', type=str, default=None, help='name of list
 
 if __name__ == '__main__':
     args = parser.parse_args()
+    DATA = Path(args.data_dir)
+    args.save_dir = DATA / f'patches/patches--patch_size_{args.patch_size}'
 
-    patch_save_dir = os.path.join(args.save_dir, 'patches')
-    mask_save_dir = os.path.join(args.save_dir, 'masks')
-    stitch_save_dir = os.path.join(args.save_dir, 'stitches')
+    patch_save_dir = args.save_dir / 'patches'
+    mask_save_dir = args.save_dir / 'masks'
+    stitch_save_dir = args.save_dir / 'stitches'
 
     if args.process_list:
         process_list = os.path.join(args.save_dir, args.process_list)

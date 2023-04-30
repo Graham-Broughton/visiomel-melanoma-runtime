@@ -70,6 +70,7 @@ data/originals/*
 workspace/tiles/data/**
 **.pt
 wandb/**
+submission.zip
 !/data/originals/qmle7cjk.tif
 !/data/originals/l6s043vm.tif
 !/data/originals/0pp2l7u8.tif
