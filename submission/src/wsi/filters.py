@@ -234,7 +234,7 @@ def filter_remove_small_objects(np_img, min_size=3000, avoid_overmask=True, over
     mask_percentage = mask_percent(rem_sm)
     if (mask_percentage >= overmask_thresh) and (min_size >= 1) and (avoid_overmask is True):
         new_min_size = min_size / 2
-        # print("Mask percentage %3.2f%% >= overmask threshold %3.2f%% for Remove Small Objs size %d, so try %d" % (
+        # #print("Mask percentage %3.2f%% >= overmask threshold %3.2f%% for Remove Small Objs size %d, so try %d" % (
         # mask_percentage, overmask_thresh, min_size, new_min_size))
         rem_sm = filter_remove_small_objects(
             np_img, new_min_size, avoid_overmask, overmask_thresh, output_type)
@@ -703,7 +703,7 @@ def filter_green_channel(np_img, green_thresh=200, avoid_overmask=True, overmask
     mask_percentage = mask_percent(gr_ch_mask)
     if (mask_percentage >= overmask_thresh) and (green_thresh < 255) and (avoid_overmask is True):
         new_green_thresh = math.ceil((255 - green_thresh) / 2 + green_thresh)
-        # print(
+        # #print(
         # "Mask percentage %3.2f%% >= overmask threshold %3.2f%% for Remove Green Channel green_thresh=%d, so try %d" % (
         # mask_percentage, overmask_thresh, green_thresh, new_green_thresh))
         gr_ch_mask = filter_green_channel(
@@ -1027,7 +1027,7 @@ def apply_filters_to_image(slide_name, res=None, save=True, display=False):
       (used for HTML page generation).
     """
     t = Time()
-    print(f"Processing slide {slide_name}")
+    #print(f"Processing slide {slide_name}")
 
     info = dict()
 
@@ -1107,8 +1107,8 @@ def save_filtered_image(np_img, slide_name, filter_num, filter_text):
     filepath = slides.get_filter_image_path(slide_name, filter_num, filter_text)
     pil_img = util.np_to_pil(np_img)
     pil_img.save(filepath)
-    print("%-20s | Time: %-14s  Name: %s" %
-          ("Save Image", str(t.elapsed()), filepath))
+    #print("%-20s | Time: %-14s  Name: %s" %
+          #("Save Image", str(t.elapsed()), filepath))
 
 
 def apply_filters_to_image_list(names, save, display, ress=None):
@@ -1165,12 +1165,12 @@ def singleprocess_apply_filters_to_images(save=True, display=False, html=False, 
       image_name_list: Optionally specify a list of image slide names.
     """
     t = Time()
-    print("Applying filters to images\n")
+    #print("Applying filters to images\n")
 
     if image_name_list is not None:
         _, info = apply_filters_to_image_list(image_name_list, save, display)
 
-    print("Time to apply filters to all images: %s\n" % str(t.elapsed()))
+    #print("Time to apply filters to all images: %s\n" % str(t.elapsed()))
 
 
 def multiprocess_apply_filters_to_images(save=True, display=False, html=False, names=None, ress=None):
@@ -1183,7 +1183,7 @@ def multiprocess_apply_filters_to_images(save=True, display=False, html=False, n
       image_name_list: Optionally specify a list of image slide numbers.
     """
     timer = Time()
-    print("Applying filters to images (multiprocess)\n")
+    #print("Applying filters to images (multiprocess)\n")
 
     if save and not os.path.exists(slides.FILTER_DIR):
         os.makedirs(slides.FILTER_DIR)
@@ -1200,8 +1200,8 @@ def multiprocess_apply_filters_to_images(save=True, display=False, html=False, n
         num_processes = num_train_images
     images_per_process = num_train_images / num_processes
 
-    print("Number of processes: " + str(num_processes))
-    print("Number of training images: " + str(num_train_images))
+    #print("Number of processes: " + str(num_processes))
+    #print("Number of training images: " + str(num_train_images))
 
     tasks = []
     for num_process in range(1, num_processes + 1):
@@ -1216,16 +1216,16 @@ def multiprocess_apply_filters_to_images(save=True, display=False, html=False, n
                 tasks.append((name, save, display, res))
             else:
                 tasks.append((name, save, display))
-            print("Task #" + str(num_process) +
-                  ": Process slides " + str(name))
+            #print("Task #" + str(num_process) +
+                 # ": Process slides " + str(name))
         else:
             tasks.append((start_index, end_index, save, display))
-            if start_index == end_index:
-                print("Task #" + str(num_process) +
-                      ": Process slide " + str(start_index))
-            else:
-                print("Task #" + str(num_process) + ": Process slides " +
-                      str(start_index) + " to " + str(end_index))
+            #if start_index == end_index:
+                #print("Task #" + str(num_process) +
+                     # ": Process slide " + str(start_index))
+            #else:
+                #print("Task #" + str(num_process) + ": Process slides " +
+                      #str(start_index) + " to " + str(end_index))
 
     # start tasks
     results = []
@@ -1240,18 +1240,18 @@ def multiprocess_apply_filters_to_images(save=True, display=False, html=False, n
         if names is not None:
             (image_nums, html_page_info_res) = result.get()
             html_page_info.update(html_page_info_res)
-            print("Done filtering slides: %s" % image_nums)
+            #print("Done filtering slides: %s" % image_nums)
         else:
             (start_ind, end_ind, html_page_info_res) = result.get()
             html_page_info.update(html_page_info_res)
-            if (start_ind == end_ind):
-                print("Done filtering slide %d" % start_ind)
-            else:
-                print("Done filtering slides %d through %d" %
-                      (start_ind, end_ind))
+            #if (start_ind == end_ind):
+                #print("Done filtering slide %d" % start_ind)
+            #else:
+                #print("Done filtering slides %d through %d" %
+                      #(start_ind, end_ind))
 
-    print("Time to apply filters to all images (multiprocess): %s\n" %
-          str(timer.elapsed()))
+    #print("Time to apply filters to all images (multiprocess): %s\n" %
+          #str(timer.elapsed()))
 
 # if __name__ == "__main__":
 # slide.training_slide_to_image(2)

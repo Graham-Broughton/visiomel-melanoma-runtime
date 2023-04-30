@@ -33,12 +33,17 @@ DIR_OUTPUT_TILES = f'./workspace/tiles/{args.dir_output}/'
 
 PAGE_IX_MULS = {0: 32, 1: 16, 2: 8, 3: 4, 4: 2}
 DIR_OUTPUT = {}
+DIR_OUTPUT[32] = f'{DIR_OUTPUT_TILES}/32/'
 DIR_OUTPUT[48] = f'{DIR_OUTPUT_TILES}/48/'
 DIR_OUTPUT[64] = f'{DIR_OUTPUT_TILES}/64/'
 
 PAGES_TO_EXTRACT = {}
+PAGES_TO_EXTRACT[32] = [0, 1, 2, 3]
 PAGES_TO_EXTRACT[48] = [0, 1, 2, 3, 4]
 PAGES_TO_EXTRACT[64] = [0, 1, 2, 3, 4]
+
+for page in PAGES_TO_EXTRACT[32]:
+    os.makedirs(f'{DIR_OUTPUT[32]}/{page}', exist_ok=True)
 
 for page in PAGES_TO_EXTRACT[48]:
     os.makedirs(f'{DIR_OUTPUT[48]}/{page}', exist_ok=True)
@@ -80,12 +85,12 @@ def save_tiles_for_page(cur_page, name, image_path, df_tissue_tiles, dir_output,
 
         region_width = region_height = patch_size  # PATCH_SIZES_ACT[cur_page]
         if x1 + region_width > slide.width:
-            logger.info(
-                f'reducing {name} since {x1} + {region_width} >{slide.width}')
+            # logger.info(
+            #     f'reducing {name} since {x1} + {region_width} >{slide.width}')
             region_width = slide.width - x1
         if y1 + region_height > slide.height:
-            logger.info(
-                f'reducing {name} since {y1} + {region_height} >{slide.height}')
+            # logger.info(
+            #     f'reducing {name} since {y1} + {region_height} >{slide.height}')
             region_height = slide.height - y1
         try:
             # method 2
@@ -100,19 +105,19 @@ def save_tiles_for_page(cur_page, name, image_path, df_tissue_tiles, dir_output,
             img = PIL.Image.fromarray(img)
             img.save(f'{dir_output}/{cur_page}/{name}_{idx}.jpeg', quality=90)
         except Exception as ex:
-            logger.info(
-                f'Failed for {name}. x: {x}, y: {y} x1: {x1}, y1: {y1} reg_w: {region_width}, reg_h: {region_height} ')
-            logger.info(
-                f'slide width: {slide.width} height: {slide.height}  cur_page: {cur_page}')
+            #logger.info(
+            #    f'Failed for {name}. x: {x}, y: {y} x1: {x1}, y1: {y1} reg_w: {region_width}, reg_h: {region_height} ')
+            #logger.info(
+            #    f'slide width: {slide.width} height: {slide.height}  cur_page: {cur_page}')
             logger.info(f'exc: {ex}')
-            logger.info(f"{os.popen('df -h').read()}")
+            #logger.info(f"{os.popen('df -h').read()}")
 
 
 def gen_tiles(DIR_INPUT_TIF, dir_output, df_tile_data, pages_to_extract):
     ix = -1
     for name, df in list(df_tile_data.groupby('tissue_id')):
         ix += 1
-        logger.info(f'processing {ix}: {name}')
+        #logger.info(f'processing {ix}')  #: {name}')
         image_path = f'{DIR_INPUT_TIF}/{name}.tif'
         df = df.sort_values(by='tile_id').reset_index(drop=True)
         for page in pages_to_extract:
@@ -128,8 +133,8 @@ def generate_tiles_for_slide_list(slide_names, dir_output, pages_to_extract):
         df1 = df[df.Score > 0.1]
         if len(df1) >= 1:
             df = df1
-        else:
-            logger.info(f'Ignoring Score: {slide_name}')
+        #else:
+            #logger.info(f'Ignoring Score: {slide_name}')
 
         df['tile_id'] = df.index
         df['tissue_id'] = slide_name
@@ -156,7 +161,7 @@ def multiprocess_generate_tiles(dir_output, pages_to_extract):
         end_index = int(end_index)
         sublist = slides_list[start_index - 1:end_index]
         tasks.append((sublist, dir_output, pages_to_extract))
-        logger.info(f"Task # {num_process} Process slides {sublist}")
+        # logger.info(f"Task # {num_process} Process slides {sublist}")
 
     # start tasks
     results = []
