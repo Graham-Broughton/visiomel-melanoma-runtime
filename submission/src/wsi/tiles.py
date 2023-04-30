@@ -364,8 +364,8 @@ def save_tile_summary_image(pil_img, slide_name):
     t = Time()
     filepath = slides.get_tile_summary_image_path(slide_name)
     pil_img.save(filepath)
-    print("%-20s | Time: %-14s  Name: %s" %
-          ("Save Tile Sum", str(t.elapsed()), filepath))
+    #print("%-20s | Time: %-14s  Name: %s" %
+    #      ("Save Tile Sum", str(t.elapsed()), filepath))
 
 
 def save_top_tiles_image(pil_img, slide_name):
@@ -378,8 +378,8 @@ def save_top_tiles_image(pil_img, slide_name):
     t = Time()
     filepath = slides.get_top_tiles_image_path(slide_name)
     pil_img.save(filepath)
-    print("%-20s | Time: %-14s  Name: %s" %
-          ("Save Top Tiles Image", str(t.elapsed()), filepath))
+    #print("%-20s | Time: %-14s  Name: %s" %
+    #      ("Save Top Tiles Image", str(t.elapsed()), filepath))
 
 
 def save_tile_summary_on_original_image(pil_img, slide_name):
@@ -392,8 +392,8 @@ def save_tile_summary_on_original_image(pil_img, slide_name):
     t = Time()
     filepath = slides.get_tile_summary_on_original_image_path(slide_name)
     pil_img.save(filepath)
-    print("%-20s | Time: %-14s  Name: %s" %
-          ("Save Tile Sum Orig", str(t.elapsed()), filepath))
+    #print("%-20s | Time: %-14s  Name: %s" %
+    #      ("Save Tile Sum Orig", str(t.elapsed()), filepath))
 
 
 def save_top_tiles_on_original_image(pil_img, slide_name):
@@ -406,8 +406,8 @@ def save_top_tiles_on_original_image(pil_img, slide_name):
     t = Time()
     filepath = slides.get_top_tiles_on_original_image_path(slide_name)
     pil_img.save(filepath)
-    print("%-20s | Time: %-14s  Name: %s" %
-          ("Save Top Orig", str(t.elapsed()), filepath))
+    #print("%-20s | Time: %-14s  Name: %s" %
+    #      ("Save Top Orig", str(t.elapsed()), filepath))
 
 
 def summary_and_tiles(slide_name, display=False, save_summary=False, save_data=True, save_top_tiles=True):
@@ -464,8 +464,8 @@ def save_tile_data(tile_summary):
     csv_file.write(csv)
     csv_file.close()
 
-    print("%-20s | Time: %-14s  Name: %s" %
-          ("Save Tile Data", str(time.elapsed()), data_path))
+    #print("%-20s | Time: %-14s  Name: %s" %
+    #      ("Save Tile Data", str(time.elapsed()), data_path))
 
 
 def tile_to_pil_tile(tile):
@@ -518,8 +518,8 @@ def save_display_tile(tile, save=True, display=False):
         if not os.path.exists(dir):
             os.makedirs(dir)
         tile_pil_img.save(img_path)
-        print("%-20s | Time: %-14s  Name: %s" %
-              ("Save Tile", str(t.elapsed()), img_path))
+        #print("%-20s | Time: %-14s  Name: %s" %
+        #      ("Save Tile", str(t.elapsed()), img_path))
 
     if display:
         tile_pil_img.show()
@@ -774,7 +774,7 @@ def multiprocess_filtered_images_to_tiles(display=False, save_summary=True, save
     images_per_process = num_train_images / num_processes
 
     print("Number of processes: " + str(num_processes))
-    print("Number of training images: " + str(num_train_images))
+    #print("Number of training images: " + str(num_train_images))
 
     tasks = []
     for num_process in range(1, num_processes + 1):
@@ -786,17 +786,17 @@ def multiprocess_filtered_images_to_tiles(display=False, save_summary=True, save
             sublist = image_list[start_index - 1:end_index]
             tasks.append((sublist, display, save_summary,
                          save_data, save_top_tiles))
-            print("Task #" + str(num_process) +
-                  ": Process slides " + str(sublist))
+            #print("Task #" + str(num_process) +
+            #      ": Process slides " + str(sublist))
         else:
             tasks.append((start_index, end_index, display,
                          save_summary, save_data, save_top_tiles))
-            if start_index == end_index:
-                print("Task #" + str(num_process) +
-                      ": Process slide " + str(start_index))
-            else:
-                print("Task #" + str(num_process) + ": Process slides " +
-                      str(start_index) + " to " + str(end_index))
+            # if start_index == end_index:
+            #     print("Task #" + str(num_process) +
+            #           ": Process slide " + str(start_index))
+            # else:
+            #     print("Task #" + str(num_process) + ": Process slides " +
+            #           str(start_index) + " to " + str(end_index))
 
     # start tasks
     results = []
@@ -812,7 +812,7 @@ def multiprocess_filtered_images_to_tiles(display=False, save_summary=True, save
         image_nums, tile_summaries = result.get()
         slide_names.extend(image_nums)
         tile_summaries_dict.update(tile_summaries)
-        print("Done tiling slides: %s" % image_nums)
+        #print("Done tiling slides: %s" % image_nums)
 
     if html:
         generate_tiled_html_result(slide_names, tile_summaries_dict, save_data)

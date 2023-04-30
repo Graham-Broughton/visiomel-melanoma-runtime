@@ -15,7 +15,7 @@ from datetime import timedelta
 from wsi import filters, tiles, slides
 
 START_TIME = time.time()
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
 warnings.filterwarnings("ignore")
@@ -33,12 +33,17 @@ DIR_OUTPUT_TILES = f'./workspace/tiles/{args.dir_output}/'
 
 PAGE_IX_MULS = {0: 32, 1: 16, 2: 8, 3: 4, 4: 2}
 DIR_OUTPUT = {}
+DIR_OUTPUT[32] = f'{DIR_OUTPUT_TILES}/32/'
 DIR_OUTPUT[48] = f'{DIR_OUTPUT_TILES}/48/'
 DIR_OUTPUT[64] = f'{DIR_OUTPUT_TILES}/64/'
 
 PAGES_TO_EXTRACT = {}
+PAGES_TO_EXTRACT[32] = [0, 1, 2, 3]
 PAGES_TO_EXTRACT[48] = [0, 1, 2, 3, 4]
 PAGES_TO_EXTRACT[64] = [0, 1, 2, 3, 4]
+
+for page in PAGES_TO_EXTRACT[32]:
+    os.makedirs(f'{DIR_OUTPUT[32]}/{page}', exist_ok=True)
 
 for page in PAGES_TO_EXTRACT[48]:
     os.makedirs(f'{DIR_OUTPUT[48]}/{page}', exist_ok=True)
@@ -112,7 +117,7 @@ def gen_tiles(DIR_INPUT_TIF, dir_output, df_tile_data, pages_to_extract):
     ix = -1
     for name, df in list(df_tile_data.groupby('tissue_id')):
         ix += 1
-        logger.info(f'processing {ix}')  #: {name}')
+        #logger.info(f'processing {ix}')  #: {name}')
         image_path = f'{DIR_INPUT_TIF}/{name}.tif'
         df = df.sort_values(by='tile_id').reset_index(drop=True)
         for page in pages_to_extract:

@@ -30,7 +30,7 @@ def process_df(df: pd.DataFrame):
 
 
 class EvalDataset(Dataset):
-    def __init__(self, dir_test, dir_meta, seed, N_MAX, N, sz):
+    def __init__(self, dir_test, dir_meta, seed, N_MAX, N, sz, sub_df):
         self.dir_test = dir_test
         self.seed = seed
         self.N_MAX = N_MAX
@@ -39,9 +39,17 @@ class EvalDataset(Dataset):
         dftest = self.get_dftest(dir_test, dir_meta)
         df1 = dftest.groupby('tissue_id').agg({'tile_id': list, 'path': list})
         df2 = dftest.drop(['path', 'tile_id'], axis=1).groupby('tissue_id').agg(lambda x: x.head(1))
-        dftest = pd.merge(df1, df2, on='tissue_id').reset_index().drop('body_site', axis=1)
-        dftest = pd.concat([dftest, pd.get_dummies(dftest['body_site']).astype(np.float32)], axis=1)
-        self.dftest = dftest.sample(frac=1)
+        dftest = pd.merge(df1, df2, on='tissue_id').reset_index()
+        dftest = pd.concat([dftest, pd.get_dummies(dftest['body_site']).astype(np.float32)], axis=1).drop('body_site', axis=1)
+        cols = [
+            'sex', 'age', 'melanoma_history', 'thigh', 'trunc', 'face', 'forearm', 'arm', 'leg', 'hand',
+            'foot', 'sole', 'finger', 'neck', 'toe', 'seat', 'scalp', 'nail', 'trunk', 'lower limb/hip',
+            'hand/foot/nail', 'head/neck', 'upper limb/shoulder'
+        ]
+        newcols = [c for c in cols if c not in dftest.columns.tolist()]
+        dftest[newcols] = 0.
+        dftest = dftest.set_index("filename")
+        self.dftest = dftest.reindex(index=sub_df.index).reset_index()
 
     def __len__(self):
         return len(self.dftest)
@@ -54,6 +62,7 @@ class EvalDataset(Dataset):
             'foot', 'sole', 'finger', 'neck', 'toe', 'seat', 'scalp', 'nail', 'trunk', 'lower limb/hip',
             'hand/foot/nail', 'head/neck', 'upper limb/shoulder'
         ]].values
+
         data = item[['path', 'tissue_id', 'tile_id']]
         data = data.explode('path', ignore_index=True)
 
@@ -66,15 +75,15 @@ class EvalDataset(Dataset):
         else:
             ixs = list(np.random.choice(range(choices), size=self.N, replace=False))
         ixs = sorted(list(ixs))
+
         images = torch.stack([self.load_img(data.loc[x, 'path']).to(torch.float32) for x in ixs])
         images /= 255.
-        metadata = torch.from_numpy(meta)
-
-        return images, metadata, data['tissue_id']
+        metadata = torch.from_numpy(meta.astype(np.float32))
+        return images, metadata
 
     @staticmethod
     def get_dftest(dir_test, meta_dir):
-        test = pd.read_csv(meta_dir / 'test_metadata.csv')
+        test = pd.read_csv(meta_dir / 'sample.csv')
         test = process_df(test)
 
         df = pd.DataFrame()

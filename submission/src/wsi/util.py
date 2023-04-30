@@ -77,8 +77,8 @@ def np_info(np_arr, name=None, elapsed=None):
         min = np_arr.min()
         mean = np_arr.mean()
         is_binary = "T" if (np.unique(np_arr).size == 2) else "F"
-        print("%-20s | Time: %-14s Min: %6.2f  Max: %6.2f  Mean: %6.2f  Binary: %s  Type: %-7s Shape: %s" % (
-            name, str(elapsed), min, max, mean, is_binary, np_arr.dtype, np_arr.shape))
+        #print("%-20s | Time: %-14s Min: %6.2f  Max: %6.2f  Mean: %6.2f  Binary: %s  Type: %-7s Shape: %s" % (
+        #    name, str(elapsed), min, max, mean, is_binary, np_arr.dtype, np_arr.shape))
 
 
 def display_img(np_img, text=None):
