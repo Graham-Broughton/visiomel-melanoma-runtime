@@ -26,6 +26,17 @@ def process_df(df: pd.DataFrame):
     df['age'] = (df['age'] - df['age'].min()) / (df['age'].max() - df['age'].min())
     df['sex'] = df['sex'].replace(1, 0).replace(2, 1).astype(np.float32)
     df['melanoma_history'] = df['melanoma_history'].replace({'YES': 1, "NO": 0}).fillna(-1).astype(np.float32)
+    df['body_site'] = df['body_site'].replace({
+        "nail": "hand/foot/nail",
+        "foot": "hand/foot/nail",
+        "sole": "hand/foot/nail",
+        "finger": "hand/foot/nail",
+        "toe": "hand/foot/nail",
+        "hand": "hand/foot/nail",
+        "scalp": "head/neck",
+        "seat": "lower limb/hip",
+        "neck": "head/neck"
+    })
     return df
 
 
@@ -42,9 +53,8 @@ class EvalDataset(Dataset):
         dftest = pd.merge(df1, df2, on='tissue_id').reset_index()
         dftest = pd.concat([dftest, pd.get_dummies(dftest['body_site']).astype(np.float32)], axis=1).drop('body_site', axis=1)
         cols = [
-            'sex', 'age', 'melanoma_history', 'thigh', 'trunc', 'face', 'forearm', 'arm', 'leg', 'hand',
-            'foot', 'sole', 'finger', 'neck', 'toe', 'seat', 'scalp', 'nail', 'trunk', 'lower limb/hip',
-            'hand/foot/nail', 'head/neck', 'upper limb/shoulder'
+            'sex', 'age', 'melanoma_history', 'thigh', 'trunc', 'face', 'forearm', 'arm', 'leg',
+            'trunk', 'lower limb/hip', 'hand/foot/nail', 'head/neck', 'upper limb/shoulder'
         ]
         newcols = [c for c in cols if c not in dftest.columns.tolist()]
         dftest[newcols] = 0.
