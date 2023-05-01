@@ -1,7 +1,7 @@
 {
     "projectDetails":"",
-    "dataDir_train":[""],
-    "dataDir_test":["L:\\"],
+    "dataDir_train":["L:\\"],
+    "dataDir_test":[""],
 
     "targetLabels":["relapse"],
     "trainFull":"True",
@@ -10,16 +10,13 @@
     "maxNumBlocks":500,
     "minNumBlocks" : 0,
 
-    "numHighScoreTiles" : 5,
-    "numHighScorePatients" : 5,
-
-    "epochs":200,
+    "epochs":5,
     "batchSize":128,
     "freezeRatio" : 0.5,
     "repeatExperiment" : 1,
 
-    "seed":1,
-    "k":3,
+    "seed":42,
+    "k":1,
 
     "modelName":"resnet18",
     "opt":"adam",
