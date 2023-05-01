@@ -1,0 +1,16 @@
+The Features Selected For this Experiment: 
+InputPath: HIA-main/sample-data
+OutPutPath: HIA-main/sample-output
+Size of image patches to analyze, in pixels: 512
+Size of image patches to analyze, in microns: 255.3856
+Size of overlapping: 0.0
+Did we skip WSI: False
+#########################################################################
+The Features Selected For this Experiment: 
+InputPath: HIA-main/sample-data
+OutPutPath: HIA-main/sample-output
+Size of image patches to analyze, in pixels: 512
+Size of image patches to analyze, in microns: 255.3856
+Size of overlapping: 0.0
+Did we skip WSI: False
+#########################################################################
