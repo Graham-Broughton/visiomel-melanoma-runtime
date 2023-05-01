@@ -8,27 +8,26 @@
 
 # Requires: Openslide (https://openslide.org/download/)
 
-from multiprocessing.dummy import Pool as ThreadPool
-from os.path import join, isfile, exists
-
-import os
-import progressbar
-import numpy as np
-import imageio
-from PIL import Image
 import argparse
+import json
+import os
+from math import sqrt
+from multiprocessing.dummy import Pool as ThreadPool
+from os.path import exists, isfile, join
+
+import cv2
+import imageio
+import numpy as np
 import openslide as ops
-import shapely.geometry as sg
 import pandas as pd
+import progressbar
+import shapely.geometry as sg
+from PIL import Image
 
 # conda config --add channels conda-forge
 # conda install shapely
 # It is explained in https://conda-forge.org/
 
-import slideio
-import cv2
-import json
-from math import sqrt
 
 #  HOW TO RUN IT :
 # run ----> Configuration per file  -------> command line option ------->
@@ -67,6 +66,27 @@ class AnnotationObject:
 ###############################################################################
 
 
+class JPGSlide:
+    def __init__(self, path, mpp):
+        self.loaded_image = imageio.imread(path)
+        self.dimensions = (self.loaded_image.shape[1], self.loaded_image.shape[0])
+        self.properties = {ops.PROPERTY_NAME_MPP_X: mpp}
+        self.level_dimensions = [self.dimensions]
+        self.level_count = 1
+
+    def get_thumbnail(self, dimensions):
+        return cv2.resize(self.loaded_image, dsize=dimensions, interpolation=cv2.INTER_CUBIC)
+
+    def read_region(self, topleft, level, window):
+        return self.loaded_image[
+            topleft[1] : topleft[1] + window[1],
+            topleft[0] : topleft[0] + window[0],
+        ]
+
+
+###############################################################################
+
+
 class wsi:
     def __init__(self, path):
         self.path = path
@@ -91,25 +111,6 @@ class wsi:
     @height.setter
     def height(self, value):
         self.height = value
-###############################################################################
-
-
-class JPGSlide:
-    def __init__(self, path, mpp):
-        self.loaded_image = imageio.imread(path)
-        self.dimensions = (self.loaded_image.shape[1], self.loaded_image.shape[0])
-        self.properties = {ops.PROPERTY_NAME_MPP_X: mpp}
-        self.level_dimensions = [self.dimensions]
-        self.level_count = 1
-
-    def get_thumbnail(self, dimensions):
-        return cv2.resize(self.loaded_image, dsize=dimensions, interpolation=cv2.INTER_CUBIC)
-
-    def read_region(self, topleft, level, window):
-        return self.loaded_image[
-            topleft[1] : topleft[1] + window[1],
-            topleft[0] : topleft[0] + window[0],
-        ]
 
 
 ###############################################################################
