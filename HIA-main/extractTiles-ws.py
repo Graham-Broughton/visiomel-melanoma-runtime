@@ -255,11 +255,7 @@ class SlideReader:
                 coord_label = ci
                 unique_tile = c[2]
 
-                if stride_div == 1:
-                    exportFlag = export and unique_tile
-                else:
-                    exportFlag = export
-
+                exportFlag = export and unique_tile if stride_div == 1 else export
                 if exportFlag:
                     imageio.imwrite(join(tiles_path, case_name + '_(' + str(c[0]) + ',' + str(c[1]) + ').jpg'), region)
                     if augment:

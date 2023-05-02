@@ -29,30 +29,16 @@ print('\nTORCH Detected: {}\n'.format(device))
 ############################################### ################################
 
 if __name__ == '__main__':
-        
-    args = utils.ReadExperimentFile(args)    
+
+    args = utils.ReadExperimentFile(args)
     if args.useClassicModel:
         Classic_Training(args)
         torch.cuda.set_device(args.gpuNo)
-        
+
     elif args.model_name == 'attmil':
-        AttMIL_Training(args)        
-    else:            
+        AttMIL_Training(args)
+    else:
         CLAM_MIL_Training(args)
-        
-        
-        
-        
-         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+
+
+        np.percentile(I, 90)

@@ -133,7 +133,7 @@ if __name__ == '__main__':
     requiredNamed.add_argument("-op", "--outputPath", help="Output path to store normalised tiles", type=Path, required=True)
     parser.add_argument("-pl", "--patientList", help="Clini table containing PATIENT and FILENAME to normalise", type=Path)
     parser.add_argument(
-        "-si", "--sampleImagePath", help="Image used to determine the colour distribution, uses GitHub one by default", type=Path
+        "-si", "--sampleImagePath", help="Image used to determine the colour distribution, uses GitHub oparser.parse_args()ne by default", type=Path
     )
     parser.add_argument("-nt", "--threads", help="Number of threads used for processing, 2 by default", type=int)
     args = parser.parse_args()

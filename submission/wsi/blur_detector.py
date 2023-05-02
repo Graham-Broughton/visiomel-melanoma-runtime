@@ -78,7 +78,6 @@ class BlurDetector(object):
             self.__dct_matrices.append(dct_matrix)
 
     def __getDCTCoefficients(self, img_blk, ind):
-        rows, cols = np.shape(img_blk)
         # D = self.__dctmtx(rows)
         D = self.__dct_matrices[ind]
         return np.matmul(np.matmul(D, img_blk), np.transpose(D))
@@ -237,5 +236,5 @@ class BlurDetector(object):
         final_map = cv2.resize(final_map, (ori_cols, ori_rows))
 
         # normalize the map
-        #final_map = final_map / np.max(final_map)
+        final_map = final_map / np.max(final_map)
         return final_map
