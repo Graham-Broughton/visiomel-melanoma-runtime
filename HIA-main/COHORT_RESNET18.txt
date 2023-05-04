@@ -1,24 +1,24 @@
 {
     "projectDetails":"",
-    "dataDir_train":["/home/broug/Desktop/HIA-main/sample-output/NORMALIZED"],
+    "dataDir_train":["/home/broug/Desktop/visiomel-melanoma-runtime/HIA-main/sample-output"],
     "dataDir_test":[""],
 
     "targetLabels":["relapse"],
     "trainFull":"True",
     "numPatientToUse" : "ALL",
 
-    "maxNumBlocks":1500,
+    "maxNumBlocks":1000,
     "minNumBlocks" : 0,
 
-    "epochs":5,
-    "batchSize":4,
+    "epochs":200,
+    "batchSize":128,
     "freezeRatio" : 0.5,
     "repeatExperiment" : 1,
 
-    "seed":42,
+    "seed":1,
     "k":1,
 
-    "modelName":"resnet18",
+    "modelName":"attmil",
     "opt":"adam",
     "lr":0.0002,
     "reg":0.00001,
