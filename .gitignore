@@ -67,7 +67,7 @@ data/originals/*
 **.tif
 **.tfrec
 **.png
-workspace/tiles/data/**
+workspace-old/tiles/data/**
 **.pt
 wandb/**
 submission.zip
@@ -77,3 +77,6 @@ submission.zip
 !/data/originals/jdso97ug.tif
 !/data/originals/09lh5igz.tif
 !/data/originals/0by07vj3.tif
+workspace-old/**
+workspace/**
+submission/workspace/**

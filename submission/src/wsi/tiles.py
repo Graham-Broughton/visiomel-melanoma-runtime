@@ -20,7 +20,7 @@ TISSUE_LOW_THRESH = 10
 # @@todo - dict per page
 TILE_SIZE_BASE = 48
 
-NUM_TOP_TILES = 64
+NUM_TOP_TILES = 100
 MIN_MEAN_INFO = 25
 
 DISPLAY_TILE_SUMMARY_LABELS = False
@@ -40,7 +40,6 @@ FADED_THRESH_COLOR = (128, 255, 128)
 FADED_MEDIUM_COLOR = (255, 255, 128)
 FADED_LOW_COLOR = (255, 210, 128)
 FADED_NONE_COLOR = (255, 128, 128)
-
 
 SUMMARY_TITLE_TEXT_COLOR = (0, 0, 0)
 SUMMARY_TITLE_TEXT_SIZE = 24
@@ -85,13 +84,13 @@ def get_tile_indices(rows, cols, row_tile_size, col_tile_size):
       List of tuples representing tile coordinates consisting of starting row, ending row,
       starting column, ending column, row number, column number.
     """
-    indices = list()
+    indices = []
     num_row_tiles, num_col_tiles = get_num_tiles(
         rows, cols, row_tile_size, col_tile_size)
-    for r in range(0, num_row_tiles):
+    for r in range(num_row_tiles):
         start_r = r * row_tile_size
         end_r = ((r + 1) * row_tile_size) if (r < num_row_tiles - 1) else rows
-        for c in range(0, num_col_tiles):
+        for c in range(num_col_tiles):
             start_c = c * col_tile_size
             end_c = ((c + 1) * col_tile_size) if (c <
                                                   num_col_tiles - 1) else cols
@@ -122,8 +121,7 @@ def create_summary_pil_img(np_img, title_area_height, row_tile_size, col_tile_si
     summary_img[0:title_area_height, 0:summary_img.shape[1]].fill(255)
     summary_img[title_area_height:np_img.shape[0] +
                 title_area_height, 0:np_img.shape[1]] = np_img
-    summary = util.np_to_pil(summary_img)
-    return summary
+    return util.np_to_pil(summary_img)
 
 
 def generate_tile_summaries(tile_sum, np_img, display=True, save_summary=False):
@@ -150,8 +148,6 @@ def generate_tile_summaries(tile_sum, np_img, display=True, save_summary=False):
     for t in tile_sum.tiles:
         border_color = tile_border_color(t.tissue_percentage)
         tile_border(draw, t.r_s + z, t.r_e + z, t.c_s, t.c_e, border_color)
-
-    summary_txt = summary_title(tile_sum) + "\n" + summary_stats(tile_sum)
 
     if save_summary:
         save_tile_summary_image(summary, slide_name)
@@ -364,8 +360,8 @@ def save_tile_summary_image(pil_img, slide_name):
     t = Time()
     filepath = slides.get_tile_summary_image_path(slide_name)
     pil_img.save(filepath)
-    #print("%-20s | Time: %-14s  Name: %s" %
-    #      ("Save Tile Sum", str(t.elapsed()), filepath))
+    print("%-20s | Time: %-14s  Name: %s" %
+          ("Save Tile Sum", str(t.elapsed()), filepath))
 
 
 def save_top_tiles_image(pil_img, slide_name):
@@ -378,8 +374,8 @@ def save_top_tiles_image(pil_img, slide_name):
     t = Time()
     filepath = slides.get_top_tiles_image_path(slide_name)
     pil_img.save(filepath)
-    #print("%-20s | Time: %-14s  Name: %s" %
-    #      ("Save Top Tiles Image", str(t.elapsed()), filepath))
+    print("%-20s | Time: %-14s  Name: %s" %
+          ("Save Top Tiles Image", str(t.elapsed()), filepath))
 
 
 def save_tile_summary_on_original_image(pil_img, slide_name):
@@ -392,8 +388,8 @@ def save_tile_summary_on_original_image(pil_img, slide_name):
     t = Time()
     filepath = slides.get_tile_summary_on_original_image_path(slide_name)
     pil_img.save(filepath)
-    #print("%-20s | Time: %-14s  Name: %s" %
-    #      ("Save Tile Sum Orig", str(t.elapsed()), filepath))
+    print("%-20s | Time: %-14s  Name: %s" %
+          ("Save Tile Sum Orig", str(t.elapsed()), filepath))
 
 
 def save_top_tiles_on_original_image(pil_img, slide_name):
@@ -406,8 +402,8 @@ def save_top_tiles_on_original_image(pil_img, slide_name):
     t = Time()
     filepath = slides.get_top_tiles_on_original_image_path(slide_name)
     pil_img.save(filepath)
-    #print("%-20s | Time: %-14s  Name: %s" %
-    #      ("Save Top Orig", str(t.elapsed()), filepath))
+    print("%-20s | Time: %-14s  Name: %s" %
+          ("Save Top Orig", str(t.elapsed()), filepath))
 
 
 def summary_and_tiles(slide_name, display=False, save_summary=False, save_data=True, save_top_tiles=True):
@@ -1036,6 +1032,209 @@ def np_text(text, w_border=TILE_TEXT_W_BORDER, h_border=TILE_TEXT_H_BORDER,
                        text_color, background)
     np_img = util.pil_to_np_rgb(pil_img)
     return np_img
+
+
+def display_tile(tile, rgb_histograms=True, hsv_histograms=True):
+    """
+    Display a tile with its corresponding RGB and HSV histograms.
+    Args:
+        tile: The Tile object.
+        rgb_histograms: If True, display RGB histograms.
+        hsv_histograms: If True, display HSV histograms.
+    """
+    text = "S%03d R%03d C%03d\n" % (tile.slide_num, tile.r, tile.c)
+    text += "Score:%4.2f Tissue:%5.2f%% CF:%2.0f SVF:%4.2f QF:%4.2f\n" % (
+        tile.score, tile.tissue_percentage, tile.color_factor, tile.s_and_v_factor, tile.quantity_factor)
+    text += "Rank #%d of %d" % (tile.rank, tile.tile_summary.num_tiles())
+
+    np_scaled_tile = tile.get_np_scaled_tile()
+    if np_scaled_tile is not None:
+        small_text = text + "\n \nSmall Tile (%d x %d)" % (np_scaled_tile.shape[1], np_scaled_tile.shape[0])
+    if rgb_histograms and hsv_histograms:
+        display_image_with_rgb_and_hsv_histograms(np_scaled_tile, small_text, scale_up=True)
+    elif rgb_histograms:
+        display_image_with_rgb_histograms(np_scaled_tile, small_text, scale_up=True)
+    elif hsv_histograms:
+        display_image_with_hsv_histograms(np_scaled_tile, small_text, scale_up=True)
+    else:
+        display_image(np_scaled_tile, small_text, scale_up=True)
+
+    np_tile = tile.get_np_tile()
+    text += " based on small tile\n \nLarge Tile (%d x %d)" % (np_tile.shape[1], np_tile.shape[0])
+    if rgb_histograms and hsv_histograms:
+        display_image_with_rgb_and_hsv_histograms(np_tile, text)
+    elif rgb_histograms:
+        display_image_with_rgb_histograms(np_tile, text)
+    elif hsv_histograms:
+        display_image_with_hsv_histograms(np_tile, text)
+    else:
+        display_image(np_tile, text)
+
+
+def display_image_with_rgb_histograms(np_rgb, text=None, scale_up=False):
+    """
+    Display an image with its corresponding RGB histograms.
+    Args:
+        np_rgb: RGB image tile as a NumPy array
+        text: Optional text to display above image
+        scale_up: If True, scale up image to display by slide.SCALE_FACTOR
+    """
+    np_r = np_rgb_r_histogram(np_rgb)
+    np_g = np_rgb_g_histogram(np_rgb)
+    np_b = np_rgb_b_histogram(np_rgb)
+    r_r, r_c, _ = np_r.shape
+    g_r, g_c, _ = np_g.shape
+    b_r, b_c, _ = np_b.shape
+
+    if scale_up:
+        np_rgb = np.repeat(np_rgb, slides.SCALE_FACTOR, axis=1)
+        np_rgb = np.repeat(np_rgb, slides.SCALE_FACTOR, axis=0)
+
+    img_r, img_c, img_ch = np_rgb.shape
+    if text is not None:
+        np_t = np_text(text)
+        t_r, t_c, _ = np_t.shape
+        t_i_c = max(t_c, img_c)
+        t_i_r = t_r + img_r
+        t_i = np.zeros([t_i_r, t_i_c, img_ch], dtype=np.uint8)
+        t_i.fill(255)
+        t_i[0:t_r, 0:t_c] = np_t
+        t_i[t_r:t_r + img_r, 0:img_c] = np_rgb
+        np_rgb = t_i  # for simplicity assign title+image to image
+        img_r, img_c, img_ch = np_rgb.shape
+
+    hists_c = max(r_c, g_c, b_c)
+    hists_r = r_r + g_r + b_r
+    hists = np.zeros([hists_r, hists_c, img_ch], dtype=np.uint8)
+
+    hists[0:r_r, 0:r_c] = np_r
+    hists[r_r:r_r + g_r, 0:g_c] = np_g
+    hists[r_r + g_r:r_r + g_r + b_r, 0:b_c] = np_b
+
+    r = max(img_r, hists_r)
+    c = img_c + hists_c
+    combo = np.zeros([r, c, img_ch], dtype=np.uint8)
+    combo.fill(255)
+    combo[0:img_r, 0:img_c] = np_rgb
+    combo[0:hists_r, img_c:c] = hists
+    pil_combo = util.np_to_pil(combo)
+    pil_combo.show()
+
+
+def display_image_with_hsv_histograms(np_rgb, text=None, scale_up=False):
+    """
+    Display an image with its corresponding HSV hue, saturation, and value histograms.
+    Args:
+        np_rgb: RGB image tile as a NumPy array
+        text: Optional text to display above image
+        scale_up: If True, scale up image to display by slide.SCALE_FACTOR
+    """
+    hsv = filters.filter_rgb_to_hsv(np_rgb)
+    np_h = np_hsv_hue_histogram(filters.filter_hsv_to_h(hsv))
+    np_s = np_hsv_saturation_histogram(filters.filter_hsv_to_s(hsv))
+    np_v = np_hsv_value_histogram(filters.filter_hsv_to_v(hsv))
+    h_r, h_c, _ = np_h.shape
+    s_r, s_c, _ = np_s.shape
+    v_r, v_c, _ = np_v.shape
+
+    if scale_up:
+        np_rgb = np.repeat(np_rgb, slides.SCALE_FACTOR, axis=1)
+        np_rgb = np.repeat(np_rgb, slides.SCALE_FACTOR, axis=0)
+
+    img_r, img_c, img_ch = np_rgb.shape
+    if text is not None:
+        np_t = np_text(text)
+        t_r, t_c, _ = np_t.shape
+        t_i_c = max(t_c, img_c)
+        t_i_r = t_r + img_r
+        t_i = np.zeros([t_i_r, t_i_c, img_ch], dtype=np.uint8)
+        t_i.fill(255)
+        t_i[0:t_r, 0:t_c] = np_t
+        t_i[t_r:t_r + img_r, 0:img_c] = np_rgb
+        np_rgb = t_i  # for simplicity assign title+image to image
+        img_r, img_c, img_ch = np_rgb.shape
+
+    hists_c = max(h_c, s_c, v_c)
+    hists_r = h_r + s_r + v_r
+    hists = np.zeros([hists_r, hists_c, img_ch], dtype=np.uint8)
+
+    hists[0:h_r, 0:h_c] = np_h
+    hists[h_r:h_r + s_r, 0:s_c] = np_s
+    hists[h_r + s_r:h_r + s_r + v_r, 0:v_c] = np_v
+
+    r = max(img_r, hists_r)
+    c = img_c + hists_c
+    combo = np.zeros([r, c, img_ch], dtype=np.uint8)
+    combo.fill(255)
+    combo[0:img_r, 0:img_c] = np_rgb
+    combo[0:hists_r, img_c:c] = hists
+    pil_combo = util.np_to_pil(combo)
+    pil_combo.show()
+
+
+def display_image_with_rgb_and_hsv_histograms(np_rgb, text=None, scale_up=False):
+    """
+    Display a tile with its corresponding RGB and HSV histograms.
+    Args:
+        np_rgb: RGB image tile as a NumPy array
+        text: Optional text to display above image
+        scale_up: If True, scale up image to display by slide.SCALE_FACTOR
+    """
+    hsv = filters.filter_rgb_to_hsv(np_rgb)
+    np_r = np_rgb_r_histogram(np_rgb)
+    np_g = np_rgb_g_histogram(np_rgb)
+    np_b = np_rgb_b_histogram(np_rgb)
+    np_h = np_hsv_hue_histogram(filters.filter_hsv_to_h(hsv))
+    np_s = np_hsv_saturation_histogram(filters.filter_hsv_to_s(hsv))
+    np_v = np_hsv_value_histogram(filters.filter_hsv_to_v(hsv))
+
+    r_r, r_c, _ = np_r.shape
+    g_r, g_c, _ = np_g.shape
+    b_r, b_c, _ = np_b.shape
+    h_r, h_c, _ = np_h.shape
+    s_r, s_c, _ = np_s.shape
+    v_r, v_c, _ = np_v.shape
+
+    if scale_up:
+        np_rgb = np.repeat(np_rgb, slides.SCALE_FACTOR, axis=1)
+        np_rgb = np.repeat(np_rgb, slides.SCALE_FACTOR, axis=0)
+
+    img_r, img_c, img_ch = np_rgb.shape
+    if text is not None:
+        np_t = np_text(text)
+        t_r, t_c, _ = np_t.shape
+        t_i_c = max(t_c, img_c)
+        t_i_r = t_r + img_r
+        t_i = np.zeros([t_i_r, t_i_c, img_ch], dtype=np.uint8)
+        t_i.fill(255)
+        t_i[0:t_r, 0:t_c] = np_t
+        t_i[t_r:t_r + img_r, 0:img_c] = np_rgb
+        np_rgb = t_i  # for simplicity assign title+image to image
+        img_r, img_c, img_ch = np_rgb.shape
+
+    rgb_hists_c = max(r_c, g_c, b_c)
+    rgb_hists_r = r_r + g_r + b_r
+    rgb_hists = np.zeros([rgb_hists_r, rgb_hists_c, img_ch], dtype=np.uint8)
+    rgb_hists[0:r_r, 0:r_c] = np_r
+    rgb_hists[r_r:r_r + g_r, 0:g_c] = np_g
+    rgb_hists[r_r + g_r:r_r + g_r + b_r, 0:b_c] = np_b
+
+    hsv_hists_c = max(h_c, s_c, v_c)
+    hsv_hists_r = h_r + s_r + v_r
+    hsv_hists = np.zeros([hsv_hists_r, hsv_hists_c, img_ch], dtype=np.uint8)
+    hsv_hists[0:h_r, 0:h_c] = np_h
+    hsv_hists[h_r:h_r + s_r, 0:s_c] = np_s
+    hsv_hists[h_r + s_r:h_r + s_r + v_r, 0:v_c] = np_v
+
+    r = max(img_r, rgb_hists_r, hsv_hists_r)
+    c = img_c + rgb_hists_c + hsv_hists_c
+    combo = np.zeros([r, c, img_ch], dtype=np.uint8)
+    combo.fill(255)
+    combo[0:img_r, 0:img_c] = np_rgb
+    combo[0:rgb_hists_r, img_c:img_c + rgb_hists_c] = rgb_hists
+    combo[0:hsv_hists_r, img_c + rgb_hists_c:c] = hsv_hists
+    pil_combo = util.np_to_pil(combo)
+    pil_combo.show()
 
 
 def rgb_to_hues(rgb):
