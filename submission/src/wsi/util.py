@@ -221,3 +221,27 @@ class Time:
         self.end = datetime.datetime.now()
         time_elapsed = self.end - self.start
         return time_elapsed
+
+
+def make_dataset_lists(rename=False):
+    flist = []
+    for sign in ['positive', 'negative']:
+        root = f"/home/broug/Desktop/visiomel-melanoma-runtime/data/{sign}"
+        lst = os.listdir(root)
+        lst = [x for x in lst if '.tif' in x]
+        for file in lst:
+            name = file.split('.')[0]
+            fpath = f"{root}/{file}"
+            img = pyvips.Image.new_from_file(fpath)
+            h, w = img.height, img.width
+            row = df[df['filename'] == file]
+            res = row['resolution'].values[0]
+            age = row['age'].values[0]
+            sex = row['sex'].values[0]
+            m_hist = row['melanoma_history'].values[0]
+            # label = "positive" if row['relapse'].values == 1 else "negative"
+            new_name = f"{root}/{name}-({w}_{h})_{res}_{int(age)}_{int(sex)}_{int(m_hist)}.tif"
+            flist.append(new_name)
+            if rename:
+                os.rename(fpath, new_name)
+    return flist
